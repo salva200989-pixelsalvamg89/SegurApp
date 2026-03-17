@@ -64,16 +64,16 @@ let state={
   empresas:[],pdfLibrary:[],
 };
 // ══════════════════════════════════════════════════════════════
-// STORAGE — Triple redundancia: Archivo externo + Documentos + localStorage
-// Los datos NUNCA se pierden aunque se limpie caché o se cierre la app
+// STORAGE — Plugin nativo NativeStorage → Android/data/.../files/SegurApp/datos.json
+// + localStorage como backup instantáneo
 // ══════════════════════════════════════════════════════════════
-const DB_KEY      = 'segurapp8';
-const FILE_NAME   = 'datos.json';
-const FILE_FOLDER = 'SegurApp';
+const DB_KEY = 'segurapp8';
 
-function getFS() {
-  return (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem)
-    ? window.Capacitor.Plugins.Filesystem : null;
+function getNativeStorage() {
+  return (window.Capacitor &&
+          window.Capacitor.Plugins &&
+          window.Capacitor.Plugins.NativeStorage)
+    ? window.Capacitor.Plugins.NativeStorage : null;
 }
 
 function applyLoadedData(l) {
@@ -90,126 +90,61 @@ function applyLoadedData(l) {
   state.cursos.forEach(c=>{if(!c.reciclajes)c.reciclajes=[];});
 }
 
-// ── GUARDAR en los 3 lugares a la vez ─────────────────────────
-async function saveStateAsync() {
-  const data = JSON.stringify(state);
-  const fs = getFS();
-  if (fs) {
-    // Intenta escribir en AMBAS ubicaciones del sistema de archivos
-    const locations = [
-      { directory: 'DOCUMENTS' },      // Documentos/ — visible en explorador
-      { directory: 'DATA' },           // Almacenamiento privado de la app — no se borra con limpiar caché
-      { directory: 'EXTERNAL_STORAGE' } // Almacenamiento externo / tarjeta SD
-    ];
-    for (const loc of locations) {
-      try {
-        await fs.mkdir({ path: FILE_FOLDER, directory: loc.directory, recursive: true }).catch(()=>{});
-        await fs.writeFile({
-          path: FILE_FOLDER + '/' + FILE_NAME,
-          data: data,
-          directory: loc.directory,
-          encoding: 'utf8'
-        });
-      } catch(e) {}
-    }
-  }
-  // localStorage — siempre como backup inmediato
-  try { localStorage.setItem(DB_KEY, data); }
-  catch(e) {
-    // Si localStorage está lleno (fotos), guarda sin fotos
-    try { localStorage.setItem(DB_KEY, JSON.stringify({...state, photos:{}})); } catch(e2) {}
-  }
-  // sessionStorage — backup extra
-  try { sessionStorage.setItem(DB_KEY, data); } catch(e) {}
-}
-
-let _saveTimer = null;
+// ── GUARDAR ───────────────────────────────────────────────────
 function saveState() {
-  // Guardado inmediato en localStorage
-  try { localStorage.setItem(DB_KEY, JSON.stringify(state)); } catch(e) {}
-  try { sessionStorage.setItem(DB_KEY, JSON.stringify(state)); } catch(e) {}
-  // Guardado en archivo con debounce de 300ms para no saturar el disco
-  clearTimeout(_saveTimer);
-  _saveTimer = setTimeout(() => saveStateAsync().catch(()=>{}), 300);
+  const data = JSON.stringify(state);
+  // 1. localStorage — instantáneo
+  try { localStorage.setItem(DB_KEY, data); } catch(e) {
+    try { localStorage.setItem(DB_KEY, JSON.stringify({...state,photos:{}})); } catch(e2) {}
+  }
+  // 2. Archivo nativo — inmediato en cada guardado
+  // Así aunque Android mate la app, los datos ya están en disco
+  const ns = getNativeStorage();
+  if (ns) ns.save({ data }).catch(() => {});
 }
 
-// ── CARGAR — lee primero localStorage (instantáneo), luego archivos ──
+// ── CARGAR ────────────────────────────────────────────────────
 function loadState() {
-  // 1. sessionStorage (más persistente que localStorage en algunos casos)
-  let loaded = false;
+  // Carga inmediata desde localStorage
   try {
-    const s = sessionStorage.getItem(DB_KEY);
-    if (s) { applyLoadedData(JSON.parse(s)); loaded = true; }
+    const s = localStorage.getItem(DB_KEY);
+    if (s) applyLoadedData(JSON.parse(s));
   } catch(e) {}
-  // 2. localStorage
-  if (!loaded) {
-    try {
-      const s = localStorage.getItem(DB_KEY);
-      if (s) { applyLoadedData(JSON.parse(s)); loaded = true; }
-    } catch(e) {}
-  }
 }
 
 async function loadStateNative() {
-  const fs = getFS();
-  if (!fs) return;
-  // Intenta leer de todas las ubicaciones, la primera que tenga datos gana
-  const locations = ['DATA', 'DOCUMENTS', 'EXTERNAL_STORAGE'];
-  for (const dir of locations) {
-    try {
-      const result = await fs.readFile({
-        path: FILE_FOLDER + '/' + FILE_NAME,
-        directory: dir,
-        encoding: 'utf8'
-      });
-      if (result && result.data) {
-        const parsed = JSON.parse(result.data);
-        applyLoadedData(parsed);
-        // Sincroniza ambos storages con el archivo encontrado
-        try { localStorage.setItem(DB_KEY, result.data); } catch(e) {}
-        try { sessionStorage.setItem(DB_KEY, result.data); } catch(e) {}
-        return; // encontrado, salir
-      }
-    } catch(e) {}
-  }
-}
-
-// ── SOLICITAR PERMISOS automáticamente al arrancar ────────────
-async function requestStoragePermissions() {
-  const fs = getFS();
-  if (!fs) return;
+  const ns = getNativeStorage();
+  if (!ns) return;
   try {
-    const perm = await fs.requestPermissions();
-    // Después de obtener permisos, intenta cargar datos del archivo
-    await loadStateNative();
-    patchState();
-    if (!state.pin) { renderAll(); checkOnboarding(); }
+    const result = await ns.load();
+    if (result && result.data && result.data.length > 2) {
+      applyLoadedData(JSON.parse(result.data));
+      // Sincroniza localStorage con el archivo nativo
+      try { localStorage.setItem(DB_KEY, result.data); } catch(e) {}
+    }
   } catch(e) {}
 }
 
-// ── GUARDAR ANTES DE CERRAR — captura todos los eventos de salida ──
+// ── GUARDAR EN TODOS LOS EVENTOS DE SALIDA ────────────────────
 function setupExitSave() {
-  // Antes de que la página se descargue
-  window.addEventListener('beforeunload', () => {
-    try { localStorage.setItem(DB_KEY, JSON.stringify(state)); } catch(e) {}
-    try { sessionStorage.setItem(DB_KEY, JSON.stringify(state)); } catch(e) {}
-  });
-  // Cuando la app pasa a segundo plano (Capacitor)
-  if (window.Capacitor) {
-    document.addEventListener('pause', () => {
-      saveStateAsync().catch(()=>{});
-    });
-    document.addEventListener('resign', () => {
-      saveStateAsync().catch(()=>{});
-    });
-  }
-  // Visibilidad — cuando el usuario sale de la app
+  const saveNow = () => {
+    const data = JSON.stringify(state);
+    try { localStorage.setItem(DB_KEY, data); } catch(e) {}
+    const ns = getNativeStorage();
+    if (ns) ns.save({ data }).catch(() => {});
+  };
+  // Página se descarga
+  window.addEventListener('beforeunload', saveNow);
+  // App pasa a segundo plano o la matan desde gestor de tareas
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
-      try { localStorage.setItem(DB_KEY, JSON.stringify(state)); } catch(e) {}
-      saveStateAsync().catch(()=>{});
-    }
+    if (document.visibilityState === 'hidden') saveNow();
   });
+  // Eventos específicos de Capacitor/Android
+  if (window.Capacitor) {
+    document.addEventListener('pause',  saveNow); // app a segundo plano
+    document.addEventListener('resign', saveNow); // iOS equivalente
+    document.addEventListener('destroy', saveNow); // app destruida
+  }
 }
 
 function showToast(msg){
@@ -829,13 +764,8 @@ function exportDocs(){
 function clearAll(){
   if(!confirm('¿Borrar todos los datos?')) return;
   localStorage.removeItem(DB_KEY);
-  const fs = getFS();
-  if (fs) {
-    fs.deleteFile({
-      path: FILE_FOLDER + '/' + FILE_NAME,
-      directory: 'DOCUMENTS'
-    }).catch(() => {});
-  }
+  const ns = getNativeStorage();
+  if (ns) ns.save({ data: '{}' }).catch(() => {});
   location.reload();
 }
 
@@ -2768,22 +2698,19 @@ function updateHoloBadge() {
 }
 
 // ── BOOT ─────────────────────────────────────────────────────
-loadState(); // carga instantánea desde localStorage/sessionStorage
+loadState();
 document.documentElement.setAttribute('data-theme','dark');
 patchState();
-setupExitSave(); // guarda datos en TODOS los eventos de salida
+setupExitSave();
 initLock();
 if (!state.pin) {
   renderAll();
   checkOnboarding();
 }
-// Carga desde archivo nativo + pide permisos automáticamente
+// Carga desde archivo nativo (APK) — sobrescribe localStorage si hay datos más recientes
 if (window.Capacitor) {
-  requestStoragePermissions().catch(() => {
-    // Si falla permisos, intenta cargar sin ellos
-    loadStateNative().then(() => {
-      patchState();
-      if (!state.pin) { renderAll(); checkOnboarding(); }
-    }).catch(() => {});
-  });
+  loadStateNative().then(() => {
+    patchState();
+    if (!state.pin) { renderAll(); checkOnboarding(); }
+  }).catch(() => {});
 }
