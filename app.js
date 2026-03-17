@@ -93,12 +93,16 @@ function applyLoadedData(l) {
 // ── GUARDAR ───────────────────────────────────────────────────
 function saveState() {
   const data = JSON.stringify(state);
-  // 1. localStorage — instantáneo
+  // 1. localStorage — siempre
   try { localStorage.setItem(DB_KEY, data); } catch(e) {
     try { localStorage.setItem(DB_KEY, JSON.stringify({...state,photos:{}})); } catch(e2) {}
   }
-  // 2. Archivo nativo — inmediato en cada guardado
-  // Así aunque Android mate la app, los datos ya están en disco
+  // 2. AndroidStorage (JavascriptInterface) — síncrono, escribe en disco inmediatamente
+  // Es el método más fiable: Java nativo llamado directamente desde JS
+  if (window.AndroidStorage) {
+    try { window.AndroidStorage.saveData(data); } catch(e) {}
+  }
+  // 3. Plugin Capacitor como backup adicional
   const ns = getNativeStorage();
   if (ns) ns.save({ data }).catch(() => {});
 }
@@ -113,6 +117,18 @@ function loadState() {
 }
 
 async function loadStateNative() {
+  // 1. AndroidStorage (JavascriptInterface) — más fiable
+  if (window.AndroidStorage) {
+    try {
+      const data = window.AndroidStorage.loadData();
+      if (data && data.length > 10) {
+        applyLoadedData(JSON.parse(data));
+        try { localStorage.setItem(DB_KEY, data); } catch(e) {}
+        return;
+      }
+    } catch(e) {}
+  }
+  // 2. Plugin Capacitor como fallback
   const ns = getNativeStorage();
   if (!ns) return;
   try {
