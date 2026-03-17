@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  INSTRUCCIONES: Este archivo muestra los permisos que necesitas añadir
+  al archivo android/app/src/main/AndroidManifest.xml
+  
+  Después de ejecutar "npx cap add android", abre el archivo:
+  android/app/src/main/AndroidManifest.xml
+  
+  Y añade estas líneas DENTRO de <manifest> pero ANTES de <application>:
+-->
+<manifest>
+
+    <!-- Cámara para fotos de documentos y diplomas -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    
+    <!-- Lectura de archivos para importar backup y PDFs -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    
+    <!-- Escritura para exportar backup y PDFs descargados -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="29" />
+    
+    <!-- Vibración para feedback táctil -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+    
+    <!-- Para compartir archivos PDF -->
+    <uses-permission android:name="android.permission.MANAGE_DOCUMENTS" />
+
+    <!--
+      También dentro de <application> añade este provider para compartir archivos:
+    -->
+    <application>
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+    </application>
+
+</manifest>

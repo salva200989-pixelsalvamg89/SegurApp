@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#05080F">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SegurApp">
+<title>SegurApp</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="lib/tesseract.min.js"></script>
+<script src="lib/jspdf.umd.min.js"></script>
+<script src="lib/html2canvas.min.js"></script>
+<script src="lib/JsBarcode.all.min.js"></script>
+<script src="lib/pdf.min.js"></script>
+<style>
+:root{--bg:#05080F;--bg1:#0A0F1C;--bg2:#0F1828;--bg3:#162032;--pri:#4F8EF7;--pri2:#2563EB;--pri-g:rgba(79,142,247,0.14);--acc:#22D3EE;--gold:#F59E0B;--ok:#10B981;--err:#F43F5E;--pur:#A855F7;--t1:#F0F6FF;--t2:#8BA5C4;--t3:#3D5470;--b:rgba(255,255,255,0.06);--ba:rgba(79,142,247,0.3);--glass:rgba(8,13,26,0.94);}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;background:var(--bg);-webkit-font-smoothing:antialiased;}
+body{font-family:'DM Sans',sans-serif;color:var(--t1);}
+#app{display:flex;flex-direction:column;height:100%;height:100dvh;}
+#screens{flex:1;position:relative;overflow:hidden;}
+.screen{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;padding-bottom:calc(68px + env(safe-area-inset-bottom,0px));opacity:0;pointer-events:none;transform:translateX(26px);transition:opacity .26s cubic-bezier(.4,0,.2,1),transform .26s cubic-bezier(.4,0,.2,1);background:var(--bg);}
+.screen::-webkit-scrollbar{display:none;}
+.screen.active{opacity:1;pointer-events:all;transform:translateX(0);}
+.screen.out-left{opacity:0;transform:translateX(-26px);pointer-events:none;}
+.screen.active .ac{opacity:1;transform:translateY(0);}
+.ac{opacity:0;transform:translateY(14px);transition:opacity .32s ease,transform .32s ease;}
+.ac:nth-child(1){transition-delay:.04s!important}.ac:nth-child(2){transition-delay:.09s!important}.ac:nth-child(3){transition-delay:.14s!important}.ac:nth-child(4){transition-delay:.19s!important}.ac:nth-child(5){transition-delay:.24s!important}
+#nav{display:flex;height:62px;flex-shrink:0;background:var(--glass);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);border-top:1px solid var(--b);padding-bottom:env(safe-area-inset-bottom,0px);}
+.ni{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;padding:5px 0;}
+.ni-icon{width:36px;height:28px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px;transition:background .2s;}
+.ni.on .ni-icon{background:var(--pri-g);}
+.ni-lbl{font-size:9px;font-weight:600;color:var(--t3);}
+.ni.on .ni-lbl{color:var(--pri);}
+.safe-top{padding-top:calc(env(safe-area-inset-top,0px) + 10px);}
+.t-app{font-family:'Syne',sans-serif;font-size:25px;font-weight:800;letter-spacing:-.5px;}
+.t-mono{font-family:'Space Mono',monospace;}
+.ph{padding:10px 15px 5px;}
+.row-sb{display:flex;align-items:center;justify-content:space-between;}
+.icon-btn{width:38px;height:38px;border-radius:50%;background:var(--pri-g);border:1px solid var(--ba);display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;outline:none;transition:transform .15s;}
+.icon-btn:active{transform:scale(.88);}
+.back-btn{width:33px;height:33px;border-radius:50%;background:rgba(128,128,128,.1);border:none;display:flex;align-items:center;justify-content:center;font-size:19px;cursor:pointer;color:var(--t1);flex-shrink:0;}
+.section-line{width:20px;height:3px;background:linear-gradient(90deg,var(--pri),var(--acc));border-radius:2px;margin-bottom:3px;}
+.band{margin:3px 13px 7px;background:rgba(34,211,238,.07);border:1px solid rgba(34,211,238,.16);border-radius:10px;padding:7px 11px;display:flex;align-items:center;gap:5px;font-size:11px;color:var(--acc);}
+.expiry-widget{margin:3px 13px 9px;background:linear-gradient(135deg,rgba(244,63,94,.09),rgba(245,158,11,.05));border:1px solid rgba(244,63,94,.2);border-radius:13px;padding:11px 13px;}
+.expiry-title{font-size:10px;font-weight:700;color:var(--err);letter-spacing:1px;text-transform:uppercase;margin-bottom:7px;}
+.expiry-item{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+.expiry-days{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;}
+.ed-ok{background:rgba(16,185,129,.14);color:var(--ok);}.ed-warn{background:rgba(245,158,11,.18);color:var(--gold);}.ed-crit{background:rgba(244,63,94,.18);color:var(--err);}
+.cards-col{display:flex;flex-direction:column;gap:9px;padding:0 13px;}
+.doc-card{border-radius:15px;padding:15px 17px;border:1px solid var(--b);position:relative;overflow:hidden;cursor:pointer;display:flex;align-items:center;gap:13px;min-height:78px;transition:transform .14s;backdrop-filter:blur(10px);}
+.doc-card:active{transform:scale(.97);}
+.dc-decor{position:absolute;width:120px;height:120px;border-radius:50%;right:-28px;top:-28px;filter:blur(18px);}
+.dc-icon{width:48px;height:48px;border-radius:12px;border:1px solid;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;position:relative;z-index:1;}
+.dc-body{flex:1;position:relative;z-index:1;}
+.dc-title{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;}
+.dc-sub{font-size:11px;color:var(--t2);margin-top:2px;}
+.badge{display:flex;align-items:center;gap:2px;border-radius:20px;border:1px solid;padding:2px 7px;font-size:9px;font-weight:700;white-space:nowrap;flex-shrink:0;z-index:1;position:relative;}
+.badge-ok{background:rgba(16,185,129,.13);border-color:rgba(16,185,129,.33);color:var(--ok);}
+.acred-section{padding:0 0 4px;}
+.acred-scroll{display:flex;gap:12px;overflow-x:auto;padding:4px 13px 12px;scrollbar-width:none;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;}
+.acred-scroll::-webkit-scrollbar{display:none;}
+.acred-card{min-width:280px;height:168px;border-radius:18px;border:1px solid var(--b);position:relative;overflow:hidden;cursor:pointer;flex-shrink:0;scroll-snap-align:start;transition:transform .15s;display:flex;flex-direction:column;justify-content:space-between;padding:14px;}
+.acred-card:active{transform:scale(.97);}
+.acred-card-decor{position:absolute;width:120px;height:120px;border-radius:50%;right:-20px;top:-20px;filter:blur(20px);}
+.acred-holo::after{content:'';position:absolute;inset:0;background:linear-gradient(115deg,transparent 20%,rgba(255,255,255,.04) 30%,rgba(79,142,247,.1) 35%,rgba(34,211,238,.12) 40%,rgba(168,85,247,.1) 45%,rgba(255,255,255,.04) 50%,transparent 60%);background-size:200% 200%;animation:holo-loop 3s linear infinite;pointer-events:none;z-index:5;border-radius:inherit;}
+.acred-stripe{position:absolute;top:0;left:-100%;width:60%;height:100%;background:linear-gradient(90deg,transparent,rgba(79,142,247,.12) 40%,rgba(34,211,238,.15) 50%,rgba(168,85,247,.12) 60%,transparent);animation:stripe-sweep 2.5s ease-in-out infinite;pointer-events:none;z-index:6;transform:skewX(-12deg);}
+@keyframes holo-loop{0%{background-position:200% 0%}100%{background-position:-200% 0%}}
+@keyframes stripe-sweep{0%{left:-100%}60%,100%{left:160%}}
+.acred-top{display:flex;align-items:center;justify-content:space-between;position:relative;z-index:2;}
+.acred-org{font-size:10px;font-weight:700;color:var(--t2);letter-spacing:1px;text-transform:uppercase;}
+.acred-type{font-size:9px;padding:2px 7px;border-radius:20px;border:1px solid var(--b);color:var(--t3);background:rgba(255,255,255,.05);}
+.acred-mid{position:relative;z-index:2;}
+.acred-name{font-family:'Syne',sans-serif;font-size:15px;font-weight:800;color:var(--t1);}
+.acred-holder{font-size:11px;color:var(--t2);margin-top:2px;}
+.acred-bot{display:flex;align-items:flex-end;justify-content:space-between;position:relative;z-index:2;}
+.acred-dates{text-align:right;}
+.acred-exp-lbl{font-size:8px;color:var(--t3);letter-spacing:.8px;text-transform:uppercase;}
+.acred-exp{font-family:'Space Mono',monospace;font-size:11px;font-weight:700;}
+.acred-add-btn{min-width:120px;height:168px;border-radius:18px;border:2px dashed var(--b);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;flex-shrink:0;scroll-snap-align:start;background:transparent;color:var(--t3);font-size:11px;transition:border-color .2s;}
+.acred-barcode-wrap{width:100%;background:white;border-radius:10px;padding:6px;margin:6px 0;display:flex;align-items:center;justify-content:center;overflow:hidden;min-height:85px;position:relative;z-index:2;}
+.acred-barcode-wrap svg{width:100%;max-height:80px;}
+.holo-card{position:relative;overflow:hidden;border-radius:18px;transform-style:preserve-3d;transition:transform .1s ease-out;}
+.holo-card::after{content:'';position:absolute;inset:0;background:linear-gradient(115deg,transparent 20%,rgba(255,255,255,.04) 30%,rgba(79,142,247,.11) 35%,rgba(34,211,238,.13) 40%,rgba(168,85,247,.11) 45%,rgba(255,255,255,.04) 50%,transparent 60%);background-size:200% 200%;animation:holo-loop 3s linear infinite;pointer-events:none;z-index:5;border-radius:inherit;}
+.holo-stripe{position:absolute;top:0;left:-100%;width:60%;height:100%;background:linear-gradient(90deg,transparent,rgba(79,142,247,.14) 40%,rgba(34,211,238,.17) 50%,rgba(168,85,247,.14) 60%,transparent);animation:stripe-sweep 2.5s ease-in-out infinite;pointer-events:none;z-index:6;transform:skewX(-12deg);}
+.holo-wm{position:absolute;inset:0;z-index:4;display:flex;align-items:center;justify-content:center;pointer-events:none;overflow:hidden;}
+.holo-wm-text{font-family:'Space Mono',monospace;font-size:10px;font-weight:700;color:rgba(79,142,247,.09);letter-spacing:3px;text-transform:uppercase;transform:rotate(-30deg);white-space:nowrap;animation:wm-pulse 4s ease-in-out infinite;user-select:none;}
+@keyframes wm-pulse{0%,100%{opacity:.7}50%{opacity:1}}
+.sec-border{position:absolute;inset:0;border-radius:inherit;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(79,142,247,.03) 2px,rgba(79,142,247,.03) 3px);pointer-events:none;z-index:3;}
+.hero{margin:9px 13px;border-radius:18px;padding:15px;border:1px solid rgba(255,255,255,.07);position:relative;overflow:hidden;}
+.hero-decor{position:absolute;width:170px;height:170px;border-radius:50%;top:-50px;right:-40px;filter:blur(28px);}
+.hero-label{font-size:9px;font-weight:700;letter-spacing:2.5px;color:var(--t2);text-align:center;margin-bottom:11px;position:relative;z-index:2;}
+.hero-row{display:flex;align-items:center;gap:11px;margin-bottom:9px;position:relative;z-index:2;}
+.hero-name{font-family:'Syne',sans-serif;font-size:15px;font-weight:800;}
+.hero-name2{font-size:12px;color:var(--t2);}
+.hero-num{font-size:13px;font-weight:700;letter-spacing:2px;margin-top:2px;font-family:'Space Mono',monospace;}
+.hero-foot{display:flex;align-items:center;gap:8px;border-top:1px solid rgba(255,255,255,.06);padding-top:9px;margin-top:5px;position:relative;z-index:2;}
+.hero-chip-lbl{font-size:9px;font-weight:700;letter-spacing:2px;color:var(--t3);}
+.hero-actions{margin-left:auto;display:flex;gap:5px;}
+.hbtn{background:var(--pri-g);border:1px solid var(--ba);border-radius:8px;padding:4px 9px;font-size:10px;font-weight:600;cursor:pointer;color:var(--pri);font-family:'DM Sans',sans-serif;white-space:nowrap;}
+.hbtn.green{color:var(--ok);border-color:rgba(16,185,129,.28);background:rgba(16,185,129,.1);}
+.hbtn.gold{color:var(--gold);border-color:rgba(245,158,11,.28);background:rgba(245,158,11,.1);}
+.data-box{background:var(--bg2);margin:0 13px 9px;border-radius:15px;padding:13px;border:1px solid var(--b);}
+.data-title{font-size:10px;font-weight:700;color:var(--t3);letter-spacing:1.2px;text-transform:uppercase;margin-bottom:9px;}
+.field{display:flex;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--b);gap:8px;}
+.field:last-child{border-bottom:none;}
+.field-ico{font-size:12px;margin-top:13px;color:var(--t3);flex-shrink:0;}
+.field-lbl{font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.8px;}
+.field-val{font-size:13px;color:var(--t1);margin-top:2px;}
+.copy-btn{background:none;border:1px solid var(--b);border-radius:6px;padding:2px 7px;font-size:10px;color:var(--pri);cursor:pointer;margin-top:2px;font-family:'DM Sans',sans-serif;}
+.form-header{display:flex;align-items:center;justify-content:space-between;padding:9px 13px 3px;}
+.form-title{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;}
+.input-grp{margin-bottom:10px;padding:0 13px;}
+.input-lbl{font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px;}
+.inp{width:100%;background:var(--bg2);border:1px solid var(--b);border-radius:11px;padding:11px 13px;color:var(--t1);font-size:14px;font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s;}
+.inp:focus{border-color:var(--ba);}
+.pri-btn{display:flex;align-items:center;justify-content:center;gap:6px;margin:5px 13px 3px;padding:13px;border-radius:13px;border:none;background:linear-gradient(135deg,var(--pri2),var(--pri));color:#fff;font-size:14px;font-weight:600;cursor:pointer;width:calc(100% - 26px);font-family:'DM Sans',sans-serif;box-shadow:0 4px 18px rgba(79,142,247,.22);transition:all .14s;}
+.pri-btn:active{transform:scale(.97);}
+.ghost-btn{display:flex;align-items:center;justify-content:center;gap:5px;margin:5px 13px 3px;padding:11px;border-radius:11px;border:1px solid var(--b);background:transparent;color:var(--t2);font-size:13px;font-weight:600;cursor:pointer;width:calc(100% - 26px);font-family:'DM Sans',sans-serif;}
+.ghost-btn:active{background:var(--bg3);}
+#present-mode{position:fixed;inset:0;z-index:300;background:#000;display:none;flex-direction:column;align-items:center;justify-content:center;}
+#present-mode.on{display:flex;}
+.present-close{position:absolute;top:max(env(safe-area-inset-top,0px),16px);right:16px;width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.1);border:none;color:#fff;font-size:19px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+#img-viewer{position:fixed;inset:0;z-index:250;background:rgba(0,0,0,.96);display:none;flex-direction:column;align-items:center;justify-content:center;padding:18px;}
+#img-viewer.on{display:flex;}
+#iv-img{max-width:100%;max-height:85vh;border-radius:13px;object-fit:contain;}
+#iv-close{position:absolute;top:max(env(safe-area-inset-top,0px),14px);right:14px;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.1);border:none;color:#fff;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+#ai-overlay{position:fixed;inset:0;z-index:280;background:rgba(5,8,15,.92);display:none;flex-direction:column;align-items:center;justify-content:center;gap:13px;backdrop-filter:blur(8px);}
+#ai-overlay.on{display:flex;}
+.ai-ring{width:52px;height:52px;border-radius:50%;border:3px solid rgba(79,142,247,.18);border-top-color:var(--pri);animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ai-dots span{animation:blink 1.2s infinite;}.ai-dots span:nth-child(2){animation-delay:.2s;}.ai-dots span:nth-child(3){animation-delay:.4s;}
+@keyframes blink{0%,80%,100%{opacity:.2}40%{opacity:1}}
+.photo-slot{border-radius:12px;border:2px dashed var(--b);min-height:85px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;cursor:pointer;overflow:hidden;position:relative;background:var(--bg3);}
+.photo-slot img{width:100%;display:block;border-radius:10px;}
+.photo-ov{position:absolute;inset:0;background:rgba(0,0,0,.42);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s;border-radius:10px;font-size:21px;}
+.photo-slot:active .photo-ov{opacity:1;}
+.photo-pair{display:flex;gap:7px;margin:0 13px 9px;}
+.photo-pair .photo-slot{flex:1;min-height:88px;}
+.face-wrap{display:flex;justify-content:center;padding:7px 0 3px;}
+.face-photo{width:84px;height:84px;border-radius:50%;border:3px solid var(--ba);overflow:hidden;background:var(--bg3);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;box-shadow:0 0 0 5px rgba(79,142,247,.07);}
+.face-badge{position:absolute;bottom:3px;right:3px;width:22px;height:22px;background:var(--pri);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;border:2px solid var(--bg);}
+.hab-item{display:flex;align-items:center;gap:9px;background:var(--bg3);border-radius:10px;padding:10px 12px;border:1px solid var(--b);margin-bottom:6px;}
+.hab-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.qr-outer{background:var(--bg2);margin:0 13px 9px;border-radius:15px;padding:13px;border:1px solid var(--b);}
+.qr-inner{display:flex;align-items:center;gap:12px;}
+.qr-img{width:86px;height:86px;border-radius:11px;border:1px solid var(--b);background:var(--bg3);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;cursor:pointer;}
+.qr-ok{font-size:12px;font-weight:600;color:var(--ok);margin-bottom:3px;}
+.qr-empty{font-size:12px;color:var(--t3);margin-bottom:3px;}
+.qr-btns{display:flex;gap:5px;margin-top:8px;}
+.qr-btn{flex:1;padding:7px 3px;border-radius:8px;border:1px solid var(--ba);background:var(--pri-g);color:var(--pri);font-size:10px;font-weight:600;cursor:pointer;text-align:center;font-family:'DM Sans',sans-serif;}
+.aesa-logo{display:flex;align-items:center;gap:4px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.26);border-radius:20px;padding:2px 9px;font-size:10px;font-weight:800;color:var(--gold);letter-spacing:2.5px;}
+.aesa-center{display:flex;flex-direction:column;align-items:center;margin-bottom:11px;position:relative;z-index:2;}
+.aesa-icon{width:56px;height:56px;border-radius:50%;border:2px solid rgba(245,158,11,.42);background:rgba(245,158,11,.08);display:flex;align-items:center;justify-content:center;font-size:26px;margin-bottom:8px;}
+.aesa-cat{background:rgba(245,158,11,.13);border:1px solid rgba(245,158,11,.33);border-radius:20px;padding:4px 16px;font-size:12px;font-weight:700;color:var(--gold);letter-spacing:1.5px;}
+.aesa-row{display:flex;gap:15px;align-items:center;border-top:1px solid rgba(255,255,255,.05);padding-top:9px;position:relative;z-index:2;}
+.curso{margin:0 11px 7px;border-radius:14px;overflow:hidden;border:1px solid var(--b);cursor:pointer;transition:transform .13s;}
+.curso:active{transform:scale(.99);}
+.curso-in{padding:12px 13px;position:relative;overflow:hidden;}
+.curso-decor{position:absolute;width:90px;height:90px;border-radius:50%;background:rgba(255,255,255,.022);right:-20px;top:-20px;}
+.curso-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.curso-code{padding:2px 7px;border-radius:20px;border:1px solid;font-size:9px;font-weight:700;font-family:'Space Mono',monospace;}
+.curso-name{font-size:13px;font-weight:600;color:var(--t1);margin-bottom:4px;}
+.tags{display:flex;gap:4px;flex-wrap:wrap;}
+.tag{background:rgba(128,128,128,.07);border-radius:20px;padding:2px 7px;font-size:9px;color:var(--t3);}
+.reciclaje-item{display:flex;align-items:center;gap:10px;background:var(--bg3);border-radius:10px;padding:9px 12px;border:1px solid var(--b);margin-bottom:6px;}
+.reciclaje-thumb{width:40px;height:40px;border-radius:8px;overflow:hidden;background:var(--bg2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px;}
+.diploma-wrap{margin:0 13px 9px;border-radius:14px;overflow:hidden;border:1px solid var(--b);background:var(--bg2);}
+.diploma-head{padding:9px 13px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--b);}
+.diploma-body{min-height:100px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:5px;padding:16px;cursor:pointer;}
+.diploma-body img{width:100%;border-radius:8px;}
+.cd-hero{margin:9px 13px;border-radius:18px;padding:15px;border:1px solid var(--b);position:relative;overflow:hidden;background:linear-gradient(135deg,#1E3A5F,#040a14);}
+.cd-center{display:flex;flex-direction:column;align-items:center;padding:7px 0;}
+.cd-icon-circle{width:55px;height:55px;border-radius:50%;border:2px solid rgba(79,142,247,.42);background:rgba(79,142,247,.1);display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:9px;}
+.search-result{display:flex;align-items:center;gap:10px;padding:10px 13px;border-bottom:1px solid var(--b);cursor:pointer;}
+.search-result:active{background:var(--bg3);}
+.sr-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.sr-title{font-size:13px;font-weight:600;}
+.sr-sub{font-size:11px;color:var(--t2);margin-top:1px;}
+.perfil-hero{margin:9px 13px;background:linear-gradient(140deg,var(--bg1),var(--bg));border-radius:18px;border:1px solid var(--b);padding:22px 17px;display:flex;flex-direction:column;align-items:center;position:relative;overflow:hidden;}
+.ph-decor{position:absolute;width:190px;height:190px;border-radius:50%;background:var(--pri-g);right:-52px;top:-52px;filter:blur(38px);}
+.avatar{width:68px;height:68px;border-radius:50%;background:linear-gradient(135deg,var(--pri2),var(--pri));display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-size:23px;font-weight:800;color:#fff;margin-bottom:11px;border:3px solid rgba(79,142,247,.22);box-shadow:0 0 22px rgba(79,142,247,.16);}
+.p-name{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;text-align:center;}
+.p-role{font-size:11px;color:var(--t2);margin-top:2px;}
+.p-badge{display:flex;align-items:center;gap:4px;background:var(--pri-g);border:1px solid var(--ba);border-radius:20px;padding:3px 12px;font-size:10px;color:var(--t2);margin-top:9px;}
+.p-section{background:var(--bg2);margin:0 13px 9px;border-radius:14px;padding:13px;border:1px solid var(--b);}
+.p-sec-head{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--b);padding-bottom:9px;margin-bottom:9px;}
+.p-sec-icon{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;}
+.p-sec-title{font-size:13px;font-weight:700;}
+.med-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:9px;}
+.med-card{background:var(--bg3);border-radius:10px;border:1px solid;padding:8px 4px;text-align:center;}
+.med-lbl{font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px;}
+.med-val{font-family:'Syne',sans-serif;font-size:15px;font-weight:800;}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--b);}
+.toggle-row:last-child{border-bottom:none;}
+.toggle-label{font-size:13px;font-weight:500;}
+.toggle-sub{font-size:11px;color:var(--t2);margin-top:1px;}
+.toggle{position:relative;width:44px;height:24px;flex-shrink:0;}
+.toggle input{opacity:0;width:0;height:0;}
+.toggle-slider{position:absolute;inset:0;background:var(--bg3);border-radius:12px;transition:background .2s;cursor:pointer;border:1px solid var(--b);}
+.toggle-slider:before{content:'';position:absolute;width:18px;height:18px;left:3px;top:50%;transform:translateY(-50%);background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 1px 4px rgba(0,0,0,.3);}
+.toggle input:checked + .toggle-slider{background:var(--pri);border-color:var(--pri);}
+.toggle input:checked + .toggle-slider:before{transform:translateY(-50%) translateX(20px);}
+.nfc-pulse{width:76px;height:76px;border-radius:50%;background:var(--pri-g);border:3px solid var(--pri);display:flex;align-items:center;justify-content:center;font-size:32px;animation:pulse 1.4s ease-in-out infinite;margin:14px auto;}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(79,142,247,.4)}50%{box-shadow:0 0 0 18px rgba(79,142,247,0)}}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.68);z-index:80;opacity:0;pointer-events:none;transition:opacity .22s;backdrop-filter:blur(5px);}
+.overlay.on{opacity:1;pointer-events:all;}
+.sheet{position:fixed;bottom:0;left:0;right:0;z-index:90;background:var(--bg2);border-top-left-radius:24px;border-top-right-radius:24px;border:1px solid var(--b);padding:14px 14px calc(14px + env(safe-area-inset-bottom,0px));transform:translateY(100%);transition:transform .3s cubic-bezier(.32,.72,0,1);max-height:92vh;overflow-y:auto;}
+.sheet.on{transform:translateY(0);}
+.sheet-handle{width:36px;height:4px;background:var(--t3);border-radius:2px;margin:0 auto 14px;}
+.sheet-title{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:13px;}
+.s-opt{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--b);cursor:pointer;}
+.s-opt:last-child{border-bottom:none;}
+.s-opt:active{opacity:.7;}
+.s-opt-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.s-opt-title{font-size:14px;font-weight:500;}
+.s-opt-sub{font-size:11px;color:var(--t2);margin-top:1px;}
+.s-cancel{margin-top:9px;padding:12px;border-radius:12px;background:var(--bg3);text-align:center;font-size:14px;color:var(--t2);cursor:pointer;}
+.stats{display:flex;background:var(--bg2);margin:9px 13px 3px;border-radius:14px;padding:12px;border:1px solid var(--b);justify-content:space-around;align-items:center;}
+.st-num{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;}
+.st-lbl{font-size:10px;color:var(--t2);margin-top:1px;text-align:center;}
+.st-div{width:1px;height:26px;background:var(--b);}
+#toast{position:fixed;bottom:calc(75px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%) translateY(8px);background:var(--bg2);border:1px solid var(--b);border-radius:11px;padding:9px 16px;font-size:13px;font-weight:500;color:var(--t1);opacity:0;pointer-events:none;transition:all .28s;white-space:nowrap;z-index:400;box-shadow:0 4px 22px rgba(0,0,0,.35);}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+#lock-screen{display:none;position:fixed;inset:0;z-index:500;background:linear-gradient(160deg,var(--bg),var(--bg1));flex-direction:column;align-items:center;justify-content:center;padding:40px 28px calc(40px + env(safe-area-inset-bottom,0px));}
+.pin-dot{width:15px;height:15px;border-radius:50%;border:2px solid var(--t3);transition:all .14s;}
+.pin-key-cell{height:64px;border-radius:15px;border:1px solid var(--b);background:var(--bg2);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;font-family:'Syne',sans-serif;font-size:21px;font-weight:700;color:var(--t1);transition:background .1s;user-select:none;}
+.pin-key-cell:active{background:var(--bg3);}
+.acred-detail-card{margin:9px 13px;border-radius:18px;padding:20px;border:1px solid var(--b);position:relative;overflow:hidden;min-height:180px;display:flex;flex-direction:column;justify-content:space-between;}
+#cv-overlay{position:fixed;inset:0;z-index:310;background:rgba(5,8,15,.97);display:none;flex-direction:column;}
+#cv-overlay.on{display:flex;}
+.cv-header{display:flex;align-items:center;justify-content:space-between;padding:calc(env(safe-area-inset-top,0px) + 12px) 14px 10px;border-bottom:1px solid var(--b);}
+.cv-content{flex:1;overflow-y:auto;padding:14px;}
+.cv-section{margin-bottom:20px;}
+.cv-section-title{font-family:'Syne',sans-serif;font-size:14px;font-weight:800;color:var(--pri);letter-spacing:.5px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--b);display:flex;align-items:center;gap:6px;}
+.cv-item{background:var(--bg2);border-radius:12px;padding:11px 13px;margin-bottom:7px;border:1px solid var(--b);}
+.cv-item-title{font-size:13px;font-weight:600;color:var(--t1);}
+.cv-item-sub{font-size:11px;color:var(--t2);margin-top:3px;}
+.cv-item-date{font-size:10px;color:var(--t3);margin-top:2px;font-family:'Space Mono',monospace;}
+.docs-section{margin:0 13px 10px;background:var(--bg2);border-radius:15px;border:1px solid var(--b);overflow:hidden;}
+.docs-section-head{padding:12px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--b);cursor:pointer;}
+.docs-section-title{display:flex;align-items:center;gap:8px;font-family:'Syne',sans-serif;font-size:14px;font-weight:700;}
+.docs-section-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;}
+.docs-section-body{padding:13px;}
+.install-banner{display:none;position:fixed;bottom:70px;left:13px;right:13px;z-index:70;background:linear-gradient(135deg,#1E3A5F,#0a1628);border:1px solid var(--ba);border-radius:14px;padding:12px 14px;align-items:center;gap:9px;box-shadow:0 8px 36px rgba(0,0,0,.38);}
+.install-banner.show{display:flex;}
+.ib-btn{background:linear-gradient(135deg,var(--pri2),var(--pri));border:none;border-radius:9px;padding:8px 13px;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.file-inp{display:none;}
+@keyframes holo-sweep{0%{background-position:200% 0}100%{background-position:-200% 0}}
+#s-pdf-viewer{overflow:hidden;}
+#s-pdf-viewer #pdf-canvas-wrap{flex:1;min-height:0;}
+#search-overlay{position:fixed;inset:0;z-index:200;background:var(--bg);display:none;flex-direction:column;}
+</style>
+</head>
+<body>
+
+<!-- SEARCH OVERLAY -->
+<div id="search-overlay" style="display:none;">
+  <div style="display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top,0px)+12px) 14px 10px;border-bottom:1px solid var(--b);">
+    <button onclick="closeSearchOverlay()" style="background:none;border:none;color:var(--t1);font-size:22px;cursor:pointer;">✕</button>
+    <input id="search-overlay-input" style="flex:1;background:var(--bg2);border:1px solid var(--b);border-radius:11px;padding:10px 14px;color:var(--t1);font-size:15px;font-family:'DM Sans',sans-serif;outline:none;" placeholder="Buscar en toda la app…" oninput="doSearch(this.value)" autocomplete="off">
+  </div>
+  <div id="search-overlay-results" style="flex:1;overflow-y:auto;"></div>
+</div>
+
+<!-- VIEWER -->
+<div id="img-viewer"><button id="iv-close" onclick="closeViewer()">✕</button><img id="iv-img" src="" alt=""><div id="iv-title"></div></div>
+
+<!-- AI OVERLAY -->
+<div id="ai-overlay">
+  <div class="ai-ring"></div>
+  <div style="font-size:14px;font-weight:600;color:var(--t1);" id="ai-text">Procesando<span class="ai-dots"><span>.</span><span>.</span><span>.</span></span></div>
+  <div style="font-size:12px;color:var(--t2);margin-top:4px;" id="ai-sub">Por favor espera</div>
+  <!-- Progress bar -->
+  <div style="width:220px;background:rgba(255,255,255,.08);border-radius:20px;height:5px;margin-top:14px;overflow:hidden;">
+    <div id="ai-progress-bar" style="height:100%;background:linear-gradient(90deg,var(--pri),var(--acc));border-radius:20px;width:0%;transition:width .4s ease;"></div>
+  </div>
+  <div style="display:flex;justify-content:space-between;width:220px;margin-top:5px;">
+    <div style="font-size:10px;color:var(--t3);" id="ai-percent">0%</div>
+    <div style="font-size:10px;color:var(--t3);" id="ai-timer">0s</div>
+  </div>
+</div>
+
+<!-- PRESENTATION -->
+<div id="present-mode">
+  <button class="present-close" onclick="closePresent()">✕</button>
+  <div id="present-card"></div>
+  <div style="margin-top:14px;font-size:10px;color:rgba(255,255,255,.22);letter-spacing:1px;">DOCUMENTO VERIFICADO · SEGURAPP</div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- ONBOARDING SCREEN -->
+<div id="onboarding" style="display:none;position:fixed;inset:0;z-index:600;background:linear-gradient(160deg,#05080F 0%,#0A0F1C 60%,#0D1525 100%);flex-direction:column;align-items:center;justify-content:center;padding:32px 28px;">
+  <!-- Animated background orbs -->
+  <div style="position:absolute;width:280px;height:280px;border-radius:50%;background:rgba(79,142,247,.06);top:-60px;right:-80px;filter:blur(50px);pointer-events:none;"></div>
+  <div style="position:absolute;width:200px;height:200px;border-radius:50%;background:rgba(168,85,247,.05);bottom:80px;left:-50px;filter:blur(40px);pointer-events:none;"></div>
+
+  <!-- Logo -->
+  <div style="width:80px;height:80px;border-radius:22px;background:linear-gradient(135deg,#1E3A5F,#0A1628);border:1px solid rgba(79,142,247,.35);display:flex;align-items:center;justify-content:center;font-size:36px;margin-bottom:18px;box-shadow:0 0 40px rgba(79,142,247,.2);">🛡️</div>
+
+  <div style="font-family:'Syne',sans-serif;font-size:28px;font-weight:800;color:#F0F6FF;margin-bottom:6px;letter-spacing:-.5px;">SegurApp</div>
+  <div style="font-size:13px;color:#8BA5C4;margin-bottom:32px;text-align:center;line-height:1.5;">Tu billetera digital de<br>Seguridad Privada</div>
+
+  <div style="width:100%;max-width:340px;">
+    <div style="font-size:10px;font-weight:700;color:#3D5470;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:6px;">Nombre *</div>
+    <input id="ob-nombre" class="inp" placeholder="Carlos" style="margin-bottom:12px;font-size:16px;padding:13px 15px;" autocomplete="given-name" autofocus onkeydown="if(event.key==='Enter')document.getElementById('ob-apell').focus()">
+    <div style="font-size:10px;font-weight:700;color:#3D5470;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:6px;">Apellidos *</div>
+    <input id="ob-apell" class="inp" placeholder="García López" style="margin-bottom:22px;font-size:16px;padding:13px 15px;" autocomplete="family-name" onkeydown="if(event.key==='Enter')finishOnboarding()">
+    <button onclick="finishOnboarding()" style="width:100%;padding:15px;border-radius:14px;border:none;background:linear-gradient(135deg,#2563EB,#4F8EF7);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;box-shadow:0 6px 24px rgba(79,142,247,.3);letter-spacing:.2px;">
+      Comenzar →
+    </button>
+  </div>
+
+  <div style="margin-top:20px;font-size:10px;color:#3D5470;text-align:center;line-height:1.6;">🔒 Datos almacenados solo en este dispositivo<br>Sin servidores externos · Sin registro</div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div id="screens">
+
+    <!-- WALLET -->
+    <div class="screen active safe-top" id="s-wallet">
+      <div class="row-sb ph ac">
+        <div><div class="t-app">Wallet</div><div style="font-size:11px;color:var(--t2);margin-top:1px;">Billetera de seguridad</div></div>
+        <div style="display:flex;gap:7px;">
+          <button class="icon-btn" onclick="openSearchOverlay()">🔍</button>
+          <button class="icon-btn" onclick="showSheet('settings')">⚙️</button>
+        </div>
+      </div>
+      <!-- Holographic security badge -->
+      <div id="holo-badge" style="display:none;margin:2px 13px 8px;border-radius:13px;overflow:hidden;position:relative;height:44px;cursor:pointer;" onclick="openViewer(null,'badge')" title="Credencial verificada">
+        <div style="position:absolute;inset:0;background:linear-gradient(100deg,#0A1628,#0F1E38,#091220);"></div>
+        <!-- Holographic shimmer layers -->
+        <div style="position:absolute;inset:0;background:linear-gradient(105deg,transparent 20%,rgba(79,142,247,.18) 30%,rgba(34,211,238,.22) 37%,rgba(168,85,247,.18) 44%,rgba(245,158,11,.12) 51%,rgba(79,142,247,.18) 58%,transparent 68%);background-size:300% 100%;animation:holo-sweep 2.8s ease-in-out infinite;"></div>
+        <div style="position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(79,142,247,.025) 3px,rgba(79,142,247,.025) 4px);pointer-events:none;"></div>
+        <!-- Content -->
+        <div style="position:relative;z-index:2;display:flex;align-items:center;height:100%;padding:0 12px;gap:10px;">
+          <div style="font-size:18px;filter:drop-shadow(0 0 6px rgba(79,142,247,.6));">🛡️</div>
+          <div style="flex:1;overflow:hidden;">
+            <div id="holo-name" style="font-family:'Syne',sans-serif;font-size:12px;font-weight:800;color:#F0F6FF;letter-spacing:.5px;text-shadow:0 0 8px rgba(79,142,247,.5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+            <div style="font-size:9px;font-weight:700;color:rgba(34,211,238,.7);letter-spacing:2px;text-transform:uppercase;margin-top:1px;">SEGURIDAD PRIVADA · VERIFICADO</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;">
+            <div id="holo-code" style="font-family:'Space Mono',monospace;font-size:9px;color:rgba(245,158,11,.8);letter-spacing:1px;"></div>
+            <div style="font-size:8px;color:rgba(255,255,255,.25);margin-top:2px;letter-spacing:.5px;">SegurApp v2.0</div>
+          </div>
+        </div>
+        <!-- Corner microtext -->
+        <div style="position:absolute;bottom:3px;left:50%;transform:translateX(-50%);font-size:7px;color:rgba(255,255,255,.12);letter-spacing:2px;font-family:'Space Mono',monospace;white-space:nowrap;z-index:2;" id="holo-microtext"></div>
+      </div>
+      <div class="band ac">🔒 Datos cifrados · Solo en este dispositivo</div>
+      <div class="expiry-widget ac" id="expiry-widget" style="display:none;"><div class="expiry-title">⚠️ Próximas expiraciones</div><div id="expiry-items"></div></div>
+      <div class="ph ac" style="padding-bottom:3px;"><div class="section-line"></div><div style="font-family:'Syne',sans-serif;font-size:14px;font-weight:700;">Documentos</div></div>
+      <div class="cards-col">
+        <div class="doc-card ac" style="background:linear-gradient(135deg,#1E3A5F,#07111E)" onclick="nav('dni')">
+          <div class="dc-decor" style="background:rgba(79,142,247,.4)"></div>
+          <div class="dc-icon" style="background:rgba(79,142,247,.14);border-color:rgba(79,142,247,.33)">🪪</div>
+          <div class="dc-body"><div class="dc-title">DNI</div><div class="dc-sub">Documento Nacional de Identidad</div></div>
+          <div class="badge badge-ok">✓ Activo</div>
+        </div>
+        <div class="doc-card ac" style="background:linear-gradient(135deg,#1A3A2A,#07110C)" onclick="nav('tip')">
+          <div class="dc-decor" style="background:rgba(16,185,129,.4)"></div>
+          <div class="dc-icon" style="background:rgba(16,185,129,.14);border-color:rgba(16,185,129,.33)">🛡️</div>
+          <div class="dc-body"><div class="dc-title">TIP</div><div class="dc-sub">Tarjeta de Identidad Profesional</div></div>
+          <div class="badge badge-ok">✓ Activo</div>
+        </div>
+        <div class="doc-card ac" style="background:linear-gradient(135deg,#2D1B4E,#090512)" onclick="nav('aesa')">
+          <div class="dc-decor" style="background:rgba(168,85,247,.4)"></div>
+          <div class="dc-icon" style="background:rgba(245,158,11,.14);border-color:rgba(245,158,11,.33)">✈️</div>
+          <div class="dc-body"><div class="dc-title">Licencia AESA</div><div class="dc-sub">Piloto de Drones A1/A3</div></div>
+          <div class="badge badge-ok">✓ Activo</div>
+        </div>
+      </div>
+      <div class="ph ac" style="padding-bottom:3px;margin-top:6px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div><div class="section-line"></div><div style="font-family:'Syne',sans-serif;font-size:14px;font-weight:700;">Acreditaciones</div></div>
+          <button class="icon-btn" onclick="showSheet('add-acred')" style="font-size:17px;width:32px;height:32px;">＋</button>
+        </div>
+      </div>
+      <div class="acred-section ac">
+        <div class="acred-scroll" id="acred-scroll">
+          <button class="acred-add-btn" onclick="showSheet('add-acred')"><span style="font-size:26px;">＋</span><span>Añadir<br>acreditación</span></button>
+        </div>
+        <div id="acred-dots" style="display:flex;justify-content:center;gap:5px;margin-bottom:4px;"></div>
+      </div>
+      <div class="stats ac">
+        <div style="text-align:center"><div class="st-num">3</div><div class="st-lbl">Docs. fijos</div></div>
+        <div class="st-div"></div>
+        <div style="text-align:center"><div class="st-num" id="acred-count">0</div><div class="st-lbl">Acreditaciones</div></div>
+        <div class="st-div"></div>
+        <div style="text-align:center"><div class="st-num">📱</div><div class="st-lbl">Local</div></div>
+      </div>
+    </div>
+
+    <!-- DNI -->
+    <div class="screen safe-top" id="s-dni">
+      <div class="form-header" style="padding-top:5px;">
+        <button class="back-btn" onclick="nav('wallet')">‹</button>
+        <div class="form-title">DNI</div>
+        <div style="display:flex;gap:6px;"><button class="back-btn" style="background:transparent;font-size:15px;" onclick="showSheet('nfc')">✏️</button><button class="icon-btn" style="width:33px;height:33px;font-size:14px;" onclick="showSheet('settings')">⚙️</button></div>
+      </div>
+      <div id="dni-view">
+        <div id="dni-face-row" style="display:none;justify-content:center;padding:6px 0 2px;"><div style="width:80px;height:80px;border-radius:50%;overflow:hidden;border:3px solid rgba(79,142,247,.35);"><img id="dni-face-img" src="" style="width:100%;height:100%;object-fit:cover;cursor:pointer;" onclick="openViewer(state.photos['dni-face'],'Foto DNI')"></div></div>
+        <div class="hero holo-card" id="dni-holo" style="background:linear-gradient(135deg,#1E3A5F,#060C18)">
+          <div class="sec-border"></div><div class="holo-stripe"></div>
+          <div class="holo-wm"><div class="holo-wm-text" id="dni-wm">DOCUMENTO NACIONAL DE IDENTIDAD · ESPAÑA</div></div>
+          <div class="hero-decor" style="background:rgba(79,142,247,.5)"></div>
+          <div class="hero-label">REINO DE ESPAÑA</div>
+          <div class="hero-row"><div style="width:44px;height:44px;border-radius:8px;background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;font-size:24px;">🇪🇸</div><div><div class="hero-name" id="dni-name-hero">APELLIDOS</div><div class="hero-name2" id="dni-fname-hero">Nombre</div><div class="hero-num" style="color:var(--pri)" id="dni-num-hero">· · · · · · · ·</div></div></div>
+          <div class="hero-foot"><span style="font-size:24px;color:var(--gold);opacity:.6">💳</span><span class="hero-chip-lbl">DNI ELECTRÓNICO</span><div class="hero-actions"><button class="hbtn" onclick="event.stopPropagation();presentDoc('dni')">📋 Presentar</button></div></div>
+        </div>
+        <div class="data-box"><div class="data-title">Datos personales</div>
+          <div class="field"><span class="field-ico">🪪</span><div><div class="field-lbl">Número DNI</div><div class="field-val t-mono" id="f-dni-num">—</div></div></div>
+          <div class="field"><span class="field-ico">👤</span><div><div class="field-lbl">Nombre completo</div><div class="field-val" id="f-dni-nombre">—</div></div></div>
+          <div class="field"><span class="field-ico">📅</span><div><div class="field-lbl">Fecha nacimiento</div><div class="field-val t-mono" id="f-dni-nac">—</div></div></div>
+          <div class="field"><span class="field-ico">⏱️</span><div><div class="field-lbl">Expiración</div><div class="field-val t-mono" id="f-dni-exp">—</div></div></div>
+          <div class="field"><span class="field-ico">🏳️</span><div><div class="field-lbl">Nacionalidad</div><div class="field-val" id="f-dni-nac2">—</div></div></div>
+          <div class="field"><span class="field-ico">📍</span><div><div class="field-lbl">Lugar nacimiento</div><div class="field-val" id="f-dni-lugar">—</div></div></div>
+          <div id="nfc-row" style="display:none;" class="field"><span class="field-ico">📡</span><div><div class="field-lbl">Verificación</div><div class="field-val" style="color:var(--ok)">✅ Datos NFC</div></div></div>
+        </div>
+        <div class="data-box" style="padding-bottom:7px;"><div class="data-title">Imágenes del DNI</div>
+          <div class="photo-pair">
+            <div class="photo-slot" onclick="photoTap('dni-front','Cara delantera DNI')"><div id="prev-dni-front" style="display:none;width:100%;"></div><div id="ph-dni-front" style="display:flex;flex-direction:column;align-items:center;gap:3px;padding:13px 0;"><span style="font-size:21px">🪪</span><span style="font-size:10px;color:var(--t3)">Delantera</span></div><div class="photo-ov">🔍</div></div>
+            <div class="photo-slot" onclick="photoTap('dni-back','Cara trasera DNI')"><div id="prev-dni-back" style="display:none;width:100%;"></div><div id="ph-dni-back" style="display:flex;flex-direction:column;align-items:center;gap:3px;padding:13px 0;"><span style="font-size:21px">🪪</span><span style="font-size:10px;color:var(--t3)">Trasera</span></div><div class="photo-ov">🔍</div></div>
+          </div>
+        </div>
+      </div>
+      <div id="dni-form" style="display:none">
+        <div style="padding:7px 13px 5px;"><div style="font-family:'Syne',sans-serif;font-size:14px;font-weight:700;">Editar DNI</div></div>
+        <div class="input-grp"><div class="input-lbl">Número DNI</div><input class="inp" id="i-dni-num" placeholder="12345678A"></div>
+        <div class="input-grp"><div class="input-lbl">Nombre</div><input class="inp" id="i-dni-nombre" placeholder="Carlos"></div>
+        <div class="input-grp"><div class="input-lbl">Apellidos</div><input class="inp" id="i-dni-apell" placeholder="García López"></div>
+        <div class="input-grp"><div class="input-lbl">Fecha nacimiento</div><input class="inp" id="i-dni-nac" placeholder="DD/MM/YYYY"></div>
+        <div class="input-grp"><div class="input-lbl">Fecha expiración</div><input class="inp" id="i-dni-exp" placeholder="DD/MM/YYYY"></div>
+        <div class="input-grp"><div class="input-lbl">Sexo</div><input class="inp" id="i-dni-sexo" placeholder="H / M"></div>
+        <div class="input-grp"><div class="input-lbl">Nacionalidad</div><input class="inp" id="i-dni-nac2" placeholder="Española"></div>
+        <div class="input-grp"><div class="input-lbl">Lugar nacimiento</div><input class="inp" id="i-dni-lugar" placeholder="Madrid"></div>
+        <div class="input-grp"><div class="input-lbl">Domicilio</div><input class="inp" id="i-dni-dom" placeholder="Ciudad, Provincia"></div>
+        <div style="padding:0 13px 7px;display:flex;gap:7px;"><button class="ghost-btn" style="margin:0;flex:1;padding:9px;font-size:12px;" onclick="document.getElementById('inp-dni-front').click()">📷 Delantera</button><button class="ghost-btn" style="margin:0;flex:1;padding:9px;font-size:12px;" onclick="document.getElementById('inp-dni-back').click()">📷 Trasera</button></div>
+        <button class="pri-btn" onclick="saveDNI()">💾 Guardar DNI</button>
+        <button class="ghost-btn" onclick="cancelEdit('dni')">Cancelar</button>
+        <div style="height:14px"></div>
+      </div>
+    </div>
+
+    <!-- TIP -->
+    <div class="screen safe-top" id="s-tip">
+      <div class="form-header" style="padding-top:5px;">
+        <button class="back-btn" onclick="nav('wallet')">‹</button>
+        <div class="form-title">TIP</div>
+        <div style="display:flex;gap:6px;"><button class="back-btn" style="background:transparent;font-size:15px;" onclick="editDoc('tip')">✏️</button><button class="icon-btn" style="width:33px;height:33px;font-size:14px;" onclick="showSheet('settings')">⚙️</button></div>
+      </div>
+      <div id="tip-view">
+        <div class="hero holo-card" id="tip-holo" style="background:linear-gradient(135deg,#1A3A2A,#050F09)">
+          <div class="sec-border"></div><div class="holo-stripe"></div>
+          <div class="holo-wm"><div class="holo-wm-text" id="tip-wm">SEGURIDAD PRIVADA · TIP VÁLIDO</div></div>
+          <div class="hero-decor" style="background:rgba(16,185,129,.5)"></div>
+          <div style="text-align:center;font-size:8px;font-weight:700;letter-spacing:2px;color:var(--t2);margin-bottom:11px;position:relative;z-index:2;">TARJETA IDENTIDAD PROFESIONAL · SEGURIDAD PRIVADA</div>
+          <div class="hero-row"><div style="width:48px;height:48px;border-radius:50%;border:2px solid rgba(16,185,129,.42);background:rgba(16,185,129,.09);display:flex;align-items:center;justify-content:center;font-size:21px;flex-shrink:0;">🛡️</div><div><div class="hero-name" id="tip-name-hero">APELLIDOS</div><div class="hero-name2" id="tip-fname-hero">Nombre</div></div></div>
+          <div id="tip-nums-summary" style="border-top:1px solid rgba(255,255,255,.06);padding-top:9px;margin-top:5px;display:flex;flex-direction:column;gap:4px;position:relative;z-index:2;"></div>
+          <div style="border-top:1px solid rgba(255,255,255,.06);padding-top:7px;margin-top:7px;display:flex;justify-content:flex-end;position:relative;z-index:2;"><button onclick="event.stopPropagation();presentDoc('tip')" class="hbtn green">📋 Presentar</button></div>
+        </div>
+        <div class="data-box"><div class="data-title">Habilitaciones</div><div id="hab-list-view"><div style="font-size:12px;color:var(--t3);font-style:italic;padding:3px 0;">Sin habilitaciones · pulsa ✏️</div></div></div>
+        <div class="data-box" style="padding-bottom:7px;"><div class="data-title">Foto del carnet TIP</div>
+          <div class="photo-pair">
+            <div class="photo-slot" onclick="photoTap('tip-front','TIP delantera')"><div id="prev-tip-front" style="display:none;width:100%;"></div><div id="ph-tip-front" style="display:flex;flex-direction:column;align-items:center;gap:3px;padding:13px 0;"><span style="font-size:21px">🛡️</span><span style="font-size:10px;color:var(--t3)">Delantera</span></div><div class="photo-ov">🔍</div></div>
+            <div class="photo-slot" onclick="photoTap('tip-back','TIP trasera')"><div id="prev-tip-back" style="display:none;width:100%;"></div><div id="ph-tip-back" style="display:flex;flex-direction:column;align-items:center;gap:3px;padding:13px 0;"><span style="font-size:21px">🛡️</span><span style="font-size:10px;color:var(--t3)">Trasera</span></div><div class="photo-ov">🔍</div></div>
+          </div>
+        </div>
+      </div>
+      <div id="tip-form" style="display:none">
+        <div style="padding:7px 13px 5px;"><div style="font-family:'Syne',sans-serif;font-size:14px;font-weight:700;">Editar TIP</div></div>
+        <div class="input-grp"><div class="input-lbl">Nombre</div><input class="inp" id="i-tip-nombre" placeholder="Carlos"></div>
+        <div class="input-grp"><div class="input-lbl">Apellidos</div><input class="inp" id="i-tip-apell" placeholder="García López"></div>
+        <div style="padding:3px 13px 9px;">
+          <div style="font-size:10px;font-weight:700;color:var(--t3);letter-spacing:1px;text-transform:uppercase;margin-bottom:9px;">Habilitaciones</div>
+          <div id="hab-edit-list" style="display:flex;flex-direction:column;gap:7px;"></div>
+          <div style="font-size:10px;font-weight:700;color:var(--t3);letter-spacing:1px;text-transform:uppercase;margin:12px 0 9px;">Escolta y Detective (con fechas)</div>
+          <div id="hab-extra-list" style="display:flex;flex-direction:column;gap:7px;"></div>
+          <div style="font-size:11px;color:var(--t3);margin-top:7px;">💡 Deja vacío si no tienes esa habilitación</div>
+        </div>
+        <div style="padding:0 13px 7px;display:flex;gap:7px;flex-wrap:wrap;">
+          <button class="ghost-btn" style="margin:0;flex:1;padding:9px;font-size:11px;min-width:110px;" onclick="document.getElementById('inp-tip-front').click()">📷 TIP delantera</button>
+          <button class="ghost-btn" style="margin:0;flex:1;padding:9px;font-size:11px;min-width:110px;" onclick="document.getElementById('inp-tip-back').click()">📷 TIP trasera</button>
+        </div>
+        <button class="pri-btn" onclick="saveTIP()">💾 Guardar TIP</button>
+        <button class="ghost-btn" onclick="cancelEdit('tip')">Cancelar</button>
+        <div style="height:14px"></div>
+      </div>
+    </div>
+
+    <!-- AESA -->
+    <div class="screen safe-top" id="s-aesa">
+      <div class="form-header" style="padding-top:5px;">
+        <button class="back-btn" onclick="nav('wallet')">‹</button>
+        <div class="form-title">Licencia AESA</div>
+        <div style="display:flex;gap:6px;"><button class="back-btn" style="background:transparent;font-size:15px;" onclick="editDoc('aesa')">✏️</button><button class="icon-btn" style="width:33px;height:33px;font-size:14px;" onclick="showSheet('settings')">⚙️</button></div>
+      </div>
+      <div id="aesa-view">
+        <div class="hero holo-card" id="aesa-holo" style="background:linear-gradient(135deg,#2D1B4E,#07040F)">
+          <div class="sec-border"></div><div class="holo-stripe"></div>
+          <div class="holo-wm"><div class="holo-wm-text" id="aesa-wm">AESA · LICENCIA PILOTO · UAS OPERATOR</div></div>
+          <div class="hero-decor" style="background:rgba(168,85,247,.5)"></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:13px;position:relative;z-index:2;"><div></div><div class="aesa-logo">✈️ AESA</div><div></div></div>
+          <div class="aesa-center"><div class="aesa-icon">🚁</div><div style="font-size:10px;font-weight:700;letter-spacing:2.5px;color:var(--t2);margin-bottom:7px;">PILOTO DE DRONES</div><div class="aesa-cat" id="aesa-cat-badge">Categoría A1/A3</div></div>
+          <div class="aesa-row">
+            <div><div style="font-size:8px;font-weight:700;letter-spacing:1.5px;color:var(--t3);margin-bottom:2px;">TITULAR</div><div style="font-size:12px;font-weight:600;" id="aesa-titular">—</div></div>
+            <div><div style="font-size:8px;font-weight:700;letter-spacing:1.5px;color:var(--t3);margin-bottom:2px;">ID LICENCIA</div><div style="font-size:11px;font-weight:700;color:var(--gold);font-family:'Space Mono',monospace;" id="aesa-id-hero">ESP-RP-107129</div></div>
+            <div id="aesa-qr-hero" style="display:none;margin-left:auto;"><div style="font-size:8px;color:var(--t3);margin-bottom:2px;">QR</div><div style="width:60px;height:60px;border-radius:8px;overflow:hidden;background:white;padding:3px;cursor:pointer;" onclick="openViewer(state.photos['aesa-qr'],'QR AESA')"><img id="aesa-qr-hero-img" style="width:100%;height:100%;object-fit:contain;" src="" alt="QR"></div></div>
+          </div>
+          <div style="border-top:1px solid rgba(255,255,255,.06);padding-top:7px;margin-top:7px;display:flex;justify-content:flex-end;position:relative;z-index:2;"><button onclick="event.stopPropagation();presentDoc('aesa')" class="hbtn gold">📋 Presentar</button></div>
+        </div>
+        <div class="data-box"><div class="data-title">Datos licencia</div>
+          <div class="field"><span class="field-ico">✈️</span><div><div class="field-lbl">Categoría</div><div class="field-val" id="f-aesa-cat">A1/A3</div></div></div>
+          <div class="field"><span class="field-ico">🪪</span><div><div class="field-lbl">ID licencia</div><div class="field-val t-mono" id="f-aesa-id" style="font-size:12px;">—</div></div></div>
+          <div class="field"><span class="field-ico">👤</span><div><div class="field-lbl">Titular</div><div class="field-val" id="f-aesa-titular">—</div></div></div>
+          <div class="field"><span class="field-ico">🔢</span><div><div class="field-lbl">Nº Operador</div><div class="field-val t-mono" id="f-aesa-op">—</div></div></div>
+          <div class="field"><span class="field-ico">📅</span><div><div class="field-lbl">Emisión</div><div class="field-val t-mono" id="f-aesa-emision">—</div></div></div>
+          <div class="field"><span class="field-ico">⏱️</span><div><div class="field-lbl">Expiración</div><div class="field-val t-mono" id="f-aesa-exp">—</div></div></div>
+        </div>
+        <div class="qr-outer"><div class="data-title">QR de verificación AESA</div>
+          <div class="qr-inner">
+            <div class="qr-img" id="aesa-qr-img" onclick="photoTap('aesa-qr','QR AESA')"><div id="prev-aesa-qr" style="display:none;width:100%;height:100%;"></div><div id="ph-aesa-qr" style="display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:26px">⬜</span><span style="font-size:9px;color:var(--t3)">Sin QR</span></div></div>
+            <div style="flex:1;"><div id="aesa-qr-status" class="qr-empty">QR no añadido</div><div style="font-size:11px;color:var(--t2);">El QR oficial de AESA verifica la autenticidad</div>
+              <div class="qr-btns"><button class="qr-btn" onclick="document.getElementById('inp-aesa-qr-c').click()">📷 Cámara</button><button class="qr-btn" onclick="document.getElementById('inp-aesa-qr-g').click()">🖼️ Galería</button></div>
+              <div id="aesa-qr-del-row" style="display:none;margin-top:6px;"><button onclick="deletePhoto('aesa-qr')" style="background:none;border:1px solid rgba(244,63,94,.3);border-radius:8px;padding:5px 10px;font-size:11px;color:var(--err);cursor:pointer;">🗑️ Eliminar QR</button></div>
+            </div>
+          </div>
+        </div>
+        <div class="data-box" style="padding-bottom:7px;"><div class="data-title">Certificado oficial AESA</div>
+          <div class="photo-slot" style="margin:0;min-height:95px;" onclick="photoTap('aesa-cert','Certificado AESA')"><div id="prev-aesa-cert" style="display:none;width:100%;"></div><div id="ph-aesa-cert" style="display:flex;flex-direction:column;align-items:center;gap:3px;padding:16px 0;"><span style="font-size:26px">📄</span><span style="font-size:11px;color:var(--t3)">Añadir certificado</span></div><div class="photo-ov">🔍</div></div>
+          <button class="ghost-btn" style="margin:7px 0 0;padding:9px;font-size:12px;" onclick="document.getElementById('inp-aesa-cert').click()">📷 Añadir / Cambiar</button>
+        </div>
+      </div>
+      <div id="aesa-form" style="display:none">
+        <div style="padding:7px 13px 5px;"><div style="font-family:'Syne',sans-serif;font-size:14px;font-weight:700;">Editar AESA</div></div>
+        <div class="input-grp"><div class="input-lbl">ID de licencia</div><input class="inp" id="i-aesa-id" placeholder="ESP-RP-000000000000"></div>
+        <div class="input-grp"><div class="input-lbl">Nombre</div><input class="inp" id="i-aesa-nombre" placeholder="Carlos"></div>
+        <div class="input-grp"><div class="input-lbl">Apellidos</div><input class="inp" id="i-aesa-apell" placeholder="García López"></div>
+        <div class="input-grp"><div class="input-lbl">Categoría</div><input class="inp" id="i-aesa-cat" placeholder="A1/A3"></div>
+        <div class="input-grp"><div class="input-lbl">Nº Operador</div><input class="inp" id="i-aesa-op" placeholder="ESP-OP-XXXXXXXX"></div>
+        <div class="input-grp"><div class="input-lbl">Fecha emisión</div><input class="inp" id="i-aesa-emision" placeholder="DD/MM/YYYY"></div>
+        <div class="input-grp"><div class="input-lbl">Fecha expiración</div><input class="inp" id="i-aesa-exp" placeholder="DD/MM/YYYY"></div>
+        <button class="pri-btn" onclick="saveAESA()">💾 Guardar AESA</button>
+        <button class="ghost-btn" onclick="cancelEdit('aesa')">Cancelar</button>
+        <div style="height:14px"></div>
+      </div>
+    </div>
+
+    <!-- ACRED DETAIL -->
+    <div class="screen safe-top" id="s-acred-detail">
+      <div class="form-header" style="padding-top:5px;">
+        <button class="back-btn" onclick="nav('wallet')">‹</button>
+        <div class="form-title" id="acred-detail-title">Acreditación</div>
+        <button class="back-btn" style="background:transparent;font-size:15px;" onclick="editCurrentAcred()">✏️</button>
+      </div>
+      <div class="acred-detail-card" id="acred-detail-card-holo"></div>
+      <div class="data-box" id="acred-detail-data"></div>
+      <div style="display:flex;gap:7px;padding:0 13px 9px;">
+        <button class="ghost-btn" style="margin:0;flex:1;padding:11px;font-size:12px;color:var(--err);border-color:rgba(244,63,94,.3);" onclick="deleteCurrentAcred()">🗑️ Eliminar</button>
+      </div>
+    </div>
+
+    <!-- CURSOS -->
+    <div class="screen safe-top" id="s-cursos">
+      <div class="row-sb ph ac">
+        <div><div class="t-app">Mis Cursos</div><div style="font-size:11px;color:var(--t2);margin-top:1px;" id="cursos-count-lbl">14 cursos</div></div>
+        <div style="display:flex;gap:6px;">
+          <button class="icon-btn" onclick="showSheet('add-curso')" style="font-size:19px;">＋</button>
+          <button class="icon-btn" onclick="showSheet('settings')" style="font-size:14px;">⚙️</button>
+        </div>
+      </div>
+      <div class="stats ac" style="margin-top:3px;">
+        <div style="text-align:center"><div class="st-num" id="cursos-num">14</div><div class="st-lbl">Completados</div></div>
+        <div class="st-div"></div>
+        <div style="text-align:center"><div class="st-num" id="cursos-doc-num">0</div><div class="st-lbl">Con diploma</div></div>
+        <div class="st-div"></div>
+        <div style="text-align:center"><div class="st-num" id="cursos-rec-num">0</div><div class="st-lbl">Reciclados</div></div>
+      </div>
+      <div style="padding:5px 13px 3px;font-size:11px;color:var(--t3);">⠿ Arrastra para reordenar · 🗑️ para eliminar</div>
+      <div id="cursos-list"></div>
+    </div>
+
+    <!-- CURSO DETAIL -->
+    <div class="screen safe-top" id="s-curso-detail">
+      <div class="form-header" style="padding-top:5px;">
+        <button class="back-btn" onclick="nav('cursos')">‹</button>
+        <div class="form-title" id="cd-title">Curso</div>
+        <button class="back-btn" style="background:transparent;font-size:15px;" onclick="openCursoEditSheet()">✏️</button>
+      </div>
+      <div class="cd-hero">
+        <div class="cd-center">
+          <div class="cd-icon-circle">🎓</div>
+          <div id="cd-code-badge" style="background:rgba(79,142,247,.16);border:1px solid rgba(79,142,247,.33);border-radius:20px;padding:2px 9px;font-size:10px;font-weight:700;color:var(--pri);margin-bottom:7px;font-family:'Space Mono',monospace;"></div>
+          <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:800;text-align:center;" id="cd-name"></div>
+          <div id="cd-recicl-badge" style="display:none;margin-top:7px;border-radius:20px;padding:3px 12px;font-size:11px;font-weight:700;"></div>
+        </div>
+      </div>
+      <div class="data-box"><div class="data-title">Detalles</div>
+        <div class="field"><span class="field-ico">📄</span><div><div class="field-lbl">Código</div><div class="field-val t-mono" id="cd-f-code"></div></div></div>
+        <div class="field"><span class="field-ico">🎓</span><div><div class="field-lbl">Nombre</div><div class="field-val" id="cd-f-name"></div></div></div>
+        <div class="field"><span class="field-ico">🏢</span><div><div class="field-lbl">Entidad</div><div class="field-val" id="cd-f-entidad"></div></div></div>
+        <div class="field"><span class="field-ico">📅</span><div><div class="field-lbl">Fecha</div><div class="field-val" id="cd-f-fecha"></div></div></div>
+        <div class="field"><span class="field-ico">⏱️</span><div><div class="field-lbl">Horas</div><div class="field-val" id="cd-f-horas"></div></div></div>
+      </div>
+      <div class="diploma-wrap">
+        <div class="diploma-head"><div style="font-size:10px;font-weight:700;color:var(--t3);letter-spacing:1px;text-transform:uppercase;">📜 Diploma / Certificado</div><button class="qr-btn" style="width:auto;padding:4px 9px;" onclick="showSheet('add-diploma')">📷 Añadir</button></div>
+        <div class="diploma-body" id="diploma-body" onclick="diplomaTap()"><div id="diploma-ph"><span style="font-size:26px">📜</span><span style="font-size:11px;color:var(--t3)">Toca para añadir foto o PDF</span></div></div>
+      </div>
+      <div class="data-box" id="reciclajes-box">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div class="data-title" style="margin-bottom:0;">Reciclajes</div>
+          <button class="qr-btn" style="width:auto;padding:4px 9px;" onclick="showSheet('add-reciclaje')">+ Añadir</button>
+        </div>
+        <div id="reciclajes-list"><div style="font-size:12px;color:var(--t3);font-style:italic;">Sin reciclajes</div></div>
+      </div>
+    </div>
+
+    <!-- DOCUMENTOS (PDF Library) -->
+    <div class="screen safe-top" id="s-docs">
+      <div class="row-sb ph ac">
+        <div><div class="t-app">Documentos</div><div style="font-size:11px;color:var(--t2);margin-top:1px;">Biblioteca de PDFs y normativas</div></div>
+        <div style="display:flex;gap:6px;">
+          <button class="icon-btn" onclick="openAddPDFSheet()" style="font-size:19px;">＋</button>
+          <button class="icon-btn" onclick="showSheet('settings')" style="font-size:14px;">⚙️</button>
+        </div>
+      </div>
+      <div class="band ac">📚 Leyes, convenios, reglamentos, procedimientos…</div>
+      <div id="pdf-library-list" style="padding:0 13px;"></div>
+      <div id="pdf-library-empty" style="text-align:center;padding:40px 20px;color:var(--t3);font-size:13px;">Sin documentos · pulsa ＋ para añadir<br><span style="font-size:11px;display:block;margin-top:6px;">Ley de Seguridad Privada, convenios…</span></div>
+      <div style="height:10px"></div>
+    </div>
+
+    <!-- PDF VIEWER -->
+    <div class="screen safe-top" id="s-pdf-viewer" style="padding-bottom:0;display:flex;flex-direction:column;">
+      <!-- Fixed top bar -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:calc(env(safe-area-inset-top,0px)+8px) 13px 8px;background:var(--bg);border-bottom:1px solid var(--b);position:sticky;top:0;z-index:10;flex-shrink:0;">
+        <button class="back-btn" onclick="nav('docs')">‹</button>
+        <div style="flex:1;text-align:center;font-family:'Syne',sans-serif;font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 8px;" id="pdf-viewer-title">Documento</div>
+        <div style="display:flex;gap:6px;">
+          <button onclick="shareCurrentPDF()" class="icon-btn" style="width:33px;height:33px;font-size:14px;">📤</button>
+          <button onclick="deleteCurrentPDF()" class="icon-btn" style="width:33px;height:33px;font-size:14px;color:var(--err);background:rgba(244,63,94,.1);border-color:rgba(244,63,94,.25);">🗑️</button>
+        </div>
+      </div>
+      <!-- Scrollable canvas area — fills all available space -->
+      <div id="pdf-canvas-wrap" style="flex:1;overflow-y:auto;overflow-x:hidden;background:#1a1a1a;display:flex;align-items:flex-start;justify-content:center;padding:8px 0;">
+        <canvas id="pdf-canvas" style="width:100%;max-width:100%;display:block;"></canvas>
+      </div>
+      <!-- Fixed bottom page controls -->
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 13px calc(10px + env(safe-area-inset-bottom,0px));background:var(--glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--b);flex-shrink:0;">
+        <button onclick="pdfPrevPage()" style="flex:1;padding:11px;background:var(--bg2);border:1px solid var(--b);border-radius:11px;color:var(--t1);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;">‹</button>
+        <div style="text-align:center;font-size:13px;color:var(--t2);flex-shrink:0;min-width:90px;">Pág. <span id="pdf-page-num" style="color:var(--t1);font-weight:700;">1</span> / <span id="pdf-page-total">1</span></div>
+        <button onclick="pdfNextPage()" style="flex:1;padding:11px;background:var(--bg2);border:1px solid var(--b);border-radius:11px;color:var(--t1);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;">›</button>
+      </div>
+    </div>
+
+    <!-- PERFIL -->
+    <div class="screen safe-top" id="s-perfil">
+      <div class="row-sb ph ac">
+        <div><div class="t-app">Perfil</div><div style="font-size:11px;color:var(--t2);margin-top:1px;">Datos personales y ajustes</div></div>
+        <div style="display:flex;gap:6px;">
+          <button class="icon-btn" onclick="togglePerfilEdit()" style="font-size:15px;">✏️</button>
+          <button class="icon-btn" onclick="showSheet('settings')" style="font-size:14px;">⚙️</button>
+        </div>
+      </div>
+      <div id="perfil-read">
+        <div class="perfil-hero ac">
+          <div class="ph-decor"></div>
+          <!-- Face photo tappable -->
+          <div style="position:relative;cursor:pointer;margin-bottom:8px;" onclick="changeFacePhoto()">
+            <div style="width:72px;height:72px;border-radius:50%;border:3px solid var(--ba);overflow:hidden;background:var(--bg3);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 5px rgba(79,142,247,.07);" id="perfil-face-photo-wrap">
+              <div id="prev-perfil-face" style="display:none;width:100%;height:100%;"><img id="perfil-face-img" style="width:100%;height:100%;object-fit:cover;"></div>
+              <div id="ph-perfil-face" style="display:flex;flex-direction:column;align-items:center;gap:2px;"><span style="font-size:24px">👤</span></div>
+            </div>
+            <div style="position:absolute;bottom:2px;right:2px;width:20px;height:20px;background:var(--pri);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;border:2px solid var(--bg);">📷</div>
+          </div>
+          <div class="avatar" id="p-avatar" style="display:none;">SM</div>
+          <div class="p-name" id="p-name-disp">—</div>
+          <div class="p-role">Vigilante de Seguridad</div>
+          <div class="p-badge" id="p-empresa-badge">🛡️ Vigilante de Seguridad</div>
+        </div>
+
+        <!-- CV / INFORME BUTTON -->
+        <div class="p-section ac" style="background:linear-gradient(135deg,rgba(79,142,247,.1),rgba(168,85,247,.06));border-color:rgba(79,142,247,.2);">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div style="width:44px;height:44px;border-radius:12px;background:var(--pri-g);border:1px solid var(--ba);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">📋</div>
+            <div style="flex:1;"><div style="font-size:14px;font-weight:700;color:var(--t1);">Informe Profesional</div><div style="font-size:11px;color:var(--t2);margin-top:2px;">Genera PDF con los documentos que elijas</div></div>
+            <div style="display:flex;gap:5px;">
+              <button class="hbtn" onclick="openInformeSheet('download')" style="padding:7px 10px;font-size:12px;">📋 Generar</button>
+              <button class="hbtn" onclick="openInformeSheet('native')" style="padding:7px 10px;font-size:12px;color:var(--acc);border-color:rgba(34,211,238,.3);background:rgba(34,211,238,.08);">📤 Compartir</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-section ac">
+          <div class="p-sec-head"><div class="p-sec-icon" style="background:rgba(79,142,247,.13)">👤</div><div class="p-sec-title">Datos personales</div></div>
+          <div class="field"><span class="field-ico">👤</span><div><div class="field-lbl">Nombre</div><div class="field-val" id="p-r-nombre">—</div></div></div>
+          <div class="field"><span class="field-ico">👤</span><div><div class="field-lbl">Apellidos</div><div class="field-val" id="p-r-apell">—</div></div></div>
+          <div class="field"><span class="field-ico">📅</span><div><div class="field-lbl">Nacimiento</div><div class="field-val t-mono" id="p-r-nac">—</div></div></div>
+          <div class="field"><span class="field-ico">📞</span><div><div class="field-lbl">Teléfono</div><div class="field-val" id="p-r-tel">—</div></div></div>
+          <div class="field"><span class="field-ico">🆘</span><div><div class="field-lbl">Contacto emergencia</div><div class="field-val" id="p-r-emerg">—</div></div></div>
+        </div>
+        <div class="p-section ac">
+          <div class="p-sec-head"><div class="p-sec-icon" style="background:rgba(244,63,94,.13)">🏥</div><div class="p-sec-title">Datos médicos</div></div>
+          <div class="med-grid">
+            <div class="med-card" style="border-color:rgba(244,63,94,.28)"><div class="med-lbl" style="color:var(--err)">SANGRE</div><div class="med-val" id="p-r-sangre">—</div></div>
+            <div class="med-card" style="border-color:rgba(79,142,247,.28)"><div class="med-lbl" style="color:var(--pri)">ALTURA</div><div class="med-val" id="p-r-altura">—</div></div>
+            <div class="med-card" style="border-color:rgba(16,185,129,.28)"><div class="med-lbl" style="color:var(--ok)">PESO</div><div class="med-val" id="p-r-peso">—</div></div>
+          </div>
+          <div class="field"><span class="field-ico">⚠️</span><div><div class="field-lbl">Alergias</div><div class="field-val" id="p-r-alergias" style="white-space:pre-line">Ninguna</div></div></div>
+          <div class="field"><span class="field-ico">💊</span><div><div class="field-lbl">Medicamentos</div><div class="field-val" id="p-r-meds" style="white-space:pre-line">Ninguno</div></div></div>
+          <div class="field"><span class="field-ico">🩺</span><div><div class="field-lbl">Enfermedades</div><div class="field-val" id="p-r-enfermedades" style="white-space:pre-line">Ninguna</div></div></div>
+        </div>
+
+        <!-- SS SECTION in perfil -->
+        <div class="p-section ac">
+          <div class="p-sec-head"><div class="p-sec-icon" style="background:rgba(16,185,129,.13)">🏥</div><div class="p-sec-title">Seguridad Social</div></div>
+          <div id="ss-view">
+            <div class="field"><span class="field-ico">👤</span><div><div class="field-lbl">Nombre</div><div class="field-val" id="f-ss-nombre">—</div></div></div>
+            <div class="field"><span class="field-ico">🪪</span><div><div class="field-lbl">DNI</div><div class="field-val t-mono" id="f-ss-dni">—</div></div></div>
+            <div class="field"><span class="field-ico">🏥</span><div style="flex:1;"><div class="field-lbl">NAF</div><div style="display:flex;align-items:center;gap:8px;margin-top:2px;"><div class="field-val t-mono" id="f-ss-naf">—</div><button class="copy-btn" onclick="copyText(state.ss.naf,'NAF copiado')">📋</button></div></div></div>
+            <div style="margin-top:8px;"><div class="data-title">Documento SS (vida laboral, TC1…)</div>
+              <div class="photo-slot" style="min-height:75px;" onclick="photoTap('ss-doc','Documento Seguridad Social')"><div id="prev-ss-doc" style="display:none;width:100%;"></div><div id="ph-ss-doc" style="display:flex;flex-direction:column;align-items:center;gap:3px;padding:12px 0;"><span style="font-size:20px">📋</span><span style="font-size:10px;color:var(--t3)">Añadir documento</span></div><div class="photo-ov">🔍</div></div>
+            </div>
+            <div style="display:flex;gap:7px;margin-top:8px;">
+              <button class="ghost-btn" style="margin:0;flex:1;padding:9px;font-size:12px;" onclick="editDoc('ss')">✏️ Editar</button>
+            </div>
+          </div>
+          <div id="ss-form" style="display:none">
+            <div style="margin-bottom:9px;"><div class="input-lbl">Nombre</div><input class="inp" id="i-ss-nombre" placeholder="Carlos"></div>
+            <div style="margin-bottom:9px;"><div class="input-lbl">Apellidos</div><input class="inp" id="i-ss-apell" placeholder="García López"></div>
+            <div style="margin-bottom:9px;"><div class="input-lbl">DNI</div><input class="inp" id="i-ss-dni" placeholder="12345678A"></div>
+            <div style="margin-bottom:9px;"><div class="input-lbl">NAF</div><input class="inp" id="i-ss-naf" placeholder="280123456789"></div>
+            <div style="display:flex;gap:7px;margin-top:8px;"><button class="pri-btn" style="margin:0;flex:1;padding:10px;font-size:12px;" onclick="saveSS()">💾 Guardar</button><button class="ghost-btn" style="margin:0;flex:1;padding:10px;font-size:12px;" onclick="cancelEditDoc('ss')">Cancelar</button></div>
+          </div>
+        </div>
+
+        <!-- BANCO SECTION in perfil -->
+        <div class="p-section ac">
+          <div class="p-sec-head"><div class="p-sec-icon" style="background:rgba(79,142,247,.13)">🏦</div><div class="p-sec-title">Datos Bancarios</div></div>
+          <div id="banco-view">
+            <div class="field"><span class="field-ico">👤</span><div><div class="field-lbl">Titular</div><div class="field-val" id="f-banco-nombre">—</div></div></div>
+            <div class="field"><span class="field-ico">🪪</span><div><div class="field-lbl">DNI</div><div class="field-val t-mono" id="f-banco-dni">—</div></div></div>
+            <div class="field"><span class="field-ico">🏦</span><div style="flex:1;"><div class="field-lbl">IBAN</div><div style="display:flex;align-items:center;gap:8px;margin-top:2px;"><div class="field-val t-mono" id="f-banco-iban" style="font-size:12px;">—</div><button class="copy-btn" onclick="copyText(state.banco.iban,'IBAN copiado')">📋</button></div></div></div>
+            <div class="field"><span class="field-ico">🌐</span><div><div class="field-lbl">BIC/SWIFT</div><div class="field-val t-mono" id="f-banco-bic">—</div></div></div>
+            <div class="field"><span class="field-ico">🏛️</span><div><div class="field-lbl">Banco</div><div class="field-val" id="f-banco-banco">—</div></div></div>
+            <div style="margin-top:8px;"><div class="data-title">Certificado bancario</div>
+              <div class="photo-slot" style="min-height:75px;" onclick="photoTap('banco-cert','Certificado bancario')"><div id="prev-banco-cert" style="display:none;width:100%;"></div><div id="ph-banco-cert" style="display:flex;flex-direction:column;align-items:center;gap:3px;padding:12px 0;"><span style="font-size:20px">📋</span><span style="font-size:10px;color:var(--t3)">Añadir certificado</span></div><div class="photo-ov">🔍</div></div>
+            </div>
+            <div style="display:flex;gap:7px;margin-top:8px;"><button class="ghost-btn" style="margin:0;flex:1;padding:9px;font-size:12px;" onclick="editDoc('banco')">✏️ Editar</button></div>
+          </div>
+          <div id="banco-form" style="display:none">
+            <div style="margin-bottom:9px;"><div class="input-lbl">Nombre</div><input class="inp" id="i-banco-nombre" placeholder="Carlos"></div>
+            <div style="margin-bottom:9px;"><div class="input-lbl">Apellidos</div><input class="inp" id="i-banco-apell" placeholder="García López"></div>
+            <div style="margin-bottom:9px;"><div class="input-lbl">DNI</div><input class="inp" id="i-banco-dni" placeholder="12345678A"></div>
+            <div style="margin-bottom:9px;"><div class="input-lbl">IBAN</div><input class="inp" id="i-banco-iban" placeholder="ES00 0000 0000 0000 0000 0000"></div>
+            <div style="margin-bottom:9px;"><div class="input-lbl">BIC/SWIFT</div><input class="inp" id="i-banco-bic" placeholder="CAHMESMMXXX"></div>
+            <div style="margin-bottom:9px;"><div class="input-lbl">Nombre del banco</div><input class="inp" id="i-banco-banco" placeholder="CaixaBank, Santander..."></div>
+            <div style="display:flex;gap:7px;margin-top:8px;"><button class="pri-btn" style="margin:0;flex:1;padding:10px;font-size:12px;" onclick="saveBanco()">💾 Guardar</button><button class="ghost-btn" style="margin:0;flex:1;padding:10px;font-size:12px;" onclick="cancelEditDoc('banco')">Cancelar</button></div>
+          </div>
+        </div>
+
+        <div class="p-section ac">
+          <div class="p-sec-head"><div class="p-sec-icon" style="background:rgba(168,85,247,.13)">🔐</div><div class="p-sec-title">Seguridad</div></div>
+          <div class="toggle-row"><div><div class="toggle-label">PIN de 4 dígitos</div><div class="toggle-sub">Bloquea la app al abrir</div></div><label class="toggle"><input type="checkbox" id="pin-toggle" onchange="handlePinToggle(this.checked)"><span class="toggle-slider"></span></label></div>
+          <div id="pin-config-area" style="display:none;margin-top:10px;">
+            <div style="margin-bottom:8px;"><div class="input-lbl">PIN actual (vacío si es nuevo)</div><input class="inp" id="pin-old" type="password" inputmode="numeric" maxlength="4" placeholder="····"></div>
+            <div style="margin-bottom:8px;"><div class="input-lbl">Nuevo PIN (4 dígitos)</div><input class="inp" id="pin-new" type="password" inputmode="numeric" maxlength="4" placeholder="····"></div>
+            <div style="margin-bottom:8px;"><div class="input-lbl">Confirmar</div><input class="inp" id="pin-confirm" type="password" inputmode="numeric" maxlength="4" placeholder="····"></div>
+            <button class="pri-btn" style="margin:0 0 5px;padding:10px;font-size:13px;" onclick="savePin()">🔐 Guardar PIN</button>
+          </div>
+          <div class="toggle-row" style="margin-top:4px;"><div><div class="toggle-label">Huella dactilar</div><div class="toggle-sub">Biometría para desbloquear</div></div><label class="toggle"><input type="checkbox" id="bio-toggle" onchange="handleBioToggle(this.checked)"><span class="toggle-slider"></span></label></div>
+        </div>
+        <div class="p-section ac">
+          <div class="p-sec-head"><div class="p-sec-icon" style="background:rgba(245,158,11,.13)">🔔</div><div class="p-sec-title">Avisos de expiración</div></div>
+          <div class="toggle-row"><div><div class="toggle-label">Activar notificaciones</div></div><label class="toggle"><input type="checkbox" id="notif-toggle" onchange="handleNotifToggle(this.checked)"><span class="toggle-slider"></span></label></div>
+          <div id="notif-days-area" style="display:none;margin-top:10px;">
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin-bottom:6px;"><input type="checkbox" id="notif-30" onchange="saveNotifDays()" style="accent-color:var(--pri)"> 30 días</label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin-bottom:6px;"><input type="checkbox" id="notif-60" onchange="saveNotifDays()" style="accent-color:var(--pri)"> 60 días</label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" id="notif-90" onchange="saveNotifDays()" style="accent-color:var(--pri)"> 90 días</label>
+          </div>
+        </div>
+        <div style="height:8px"></div>
+      </div>
+      <div id="perfil-edit" style="display:none">
+        <div style="padding:3px 13px 5px;font-size:10px;font-weight:700;color:var(--t3);letter-spacing:1px;text-transform:uppercase;">Datos personales</div>
+        <div class="input-grp"><div class="input-lbl">Nombre</div><input class="inp" id="i-p-nombre" placeholder="Carlos"></div>
+        <div class="input-grp"><div class="input-lbl">Apellidos</div><input class="inp" id="i-p-apell" placeholder="García López"></div>
+        <div class="input-grp"><div class="input-lbl">Fecha nacimiento</div><input class="inp" id="i-p-nac" placeholder="DD/MM/YYYY"></div>
+        <div class="input-grp"><div class="input-lbl">Teléfono</div><input class="inp" id="i-p-tel" type="tel" placeholder="+34 600 000 000"></div>
+        <div class="input-grp"><div class="input-lbl">Contacto emergencia</div><input class="inp" id="i-p-emerg" placeholder="Nombre - Teléfono"></div>
+        <div style="padding:3px 13px 5px;font-size:10px;font-weight:700;color:var(--t3);letter-spacing:1px;text-transform:uppercase;margin-top:7px;">Datos médicos</div>
+        <div class="input-grp"><div class="input-lbl">Grupo sanguíneo</div><input class="inp" id="i-p-sangre" placeholder="A+, O-..."></div>
+        <div class="input-grp"><div class="input-lbl">Altura (cm)</div><input class="inp" id="i-p-altura" type="number" placeholder="175"></div>
+        <div class="input-grp"><div class="input-lbl">Peso (kg)</div><input class="inp" id="i-p-peso" type="number" placeholder="75"></div>
+        <div class="input-grp"><div class="input-lbl">Alergias (una por línea)</div><textarea class="inp" id="i-p-alergias" placeholder="Ninguna" style="resize:none;height:70px;"></textarea></div>
+        <div class="input-grp"><div class="input-lbl">Medicamentos (uno por línea)</div><textarea class="inp" id="i-p-meds" placeholder="Ninguno" style="resize:none;height:70px;"></textarea></div>
+        <div class="input-grp"><div class="input-lbl">Enfermedades (una por línea)</div><textarea class="inp" id="i-p-enfermedades" placeholder="Ninguna" style="resize:none;height:70px;"></textarea></div>
+        <button class="pri-btn" onclick="savePerfil()">💾 Guardar cambios</button>
+        <button class="ghost-btn" onclick="togglePerfilEdit()">Cancelar</button>
+        <div style="height:14px"></div>
+      </div>
+    </div>
+
+    <!-- EMPRESAS -->
+    <div class="screen safe-top" id="s-empresas">
+      <div class="row-sb ph ac">
+        <div><div class="t-app">Empresas</div><div style="font-size:11px;color:var(--t2);margin-top:1px;">Empresas de seguridad</div></div>
+        <div style="display:flex;gap:6px;">
+          <button class="icon-btn" onclick="openAddEmpresaSheet()" style="font-size:19px;">＋</button>
+          <button class="icon-btn" onclick="showSheet('settings')" style="font-size:14px;">⚙️</button>
+        </div>
+      </div>
+      <div id="empresas-list" style="padding:0 13px;"></div>
+      <div id="empresa-empty" style="text-align:center;padding:40px 20px;color:var(--t3);font-size:13px;">Sin empresas · pulsa ＋ para añadir</div>
+    </div>
+
+    <!-- EMPRESA DETAIL -->
+    <div class="screen safe-top" id="s-empresa-detail">
+      <div class="form-header" style="padding-top:5px;">
+        <button class="back-btn" onclick="nav('empresas')">‹</button>
+        <div class="form-title" id="emp-detail-title">Empresa</div>
+        <button class="back-btn" style="background:transparent;font-size:15px;" onclick="editCurrentEmpresa()">✏️</button>
+      </div>
+      <div id="emp-detail-body"></div>
+    </div>
+
+    <!-- SEARCH (legacy, not used visually) -->
+    <div class="screen safe-top" id="s-search">
+      <div class="ph ac"><div class="t-app">Buscar</div></div>
+    </div>
+
+  </div><!-- /screens -->
+
+  <nav id="nav">
+    <div class="ni on" id="ni-wallet" onclick="switchTab('wallet')"><div class="ni-icon">👜</div><div class="ni-lbl">Wallet</div></div>
+    <div class="ni" id="ni-cursos" onclick="switchTab('cursos')"><div class="ni-icon">🎓</div><div class="ni-lbl">Cursos</div></div>
+    <div class="ni" id="ni-docs" onclick="switchTab('docs')"><div class="ni-icon">📋</div><div class="ni-lbl">Documentos</div></div>
+    <div class="ni" id="ni-empresas" onclick="switchTab('empresas')"><div class="ni-icon">🏢</div><div class="ni-lbl">Empresas</div></div>
+    <div class="ni" id="ni-perfil" onclick="switchTab('perfil')"><div class="ni-icon">👤</div><div class="ni-lbl">Perfil</div></div>
+  </nav>
+</div>
+
+<!-- OVERLAY -->
+<div class="overlay" id="overlay" onclick="closeSheet()"></div>
+
+<!-- SHEETS -->
+<div class="sheet" id="sheet-nfc">
+  <div class="sheet-handle"></div><div class="sheet-title">Opciones DNI</div>
+  <div class="s-opt" onclick="closeSheet();showSheet('nfc-info')"><div class="s-opt-icon" style="background:rgba(79,142,247,.13)">📡</div><div><div class="s-opt-title">Leer chip NFC</div><div class="s-opt-sub">Lee los datos del DNI electrónico</div></div></div>
+  <div class="s-opt" onclick="closeSheet();startOCR('dni')"><div class="s-opt-icon" style="background:rgba(34,211,238,.13)">🔍</div><div><div class="s-opt-title">Escanear con OCR</div></div></div>
+  <div class="s-opt" onclick="closeSheet();editDoc('dni')"><div class="s-opt-icon" style="background:rgba(16,185,129,.13)">✏️</div><div><div class="s-opt-title">Introducir manualmente</div></div></div>
+  <div class="s-cancel" onclick="closeSheet()">Cancelar</div>
+</div>
+
+<div class="sheet" id="sheet-nfc-info">
+  <div class="sheet-handle"></div><div class="sheet-title">Leer DNI con NFC</div>
+  <div class="nfc-pulse">📡</div>
+  <p style="text-align:center;font-size:13px;color:var(--t2);margin-bottom:9px;">Acerca la parte trasera del móvil al chip del DNI</p>
+  <div style="background:var(--bg3);border-radius:12px;padding:12px;border:1px solid var(--b);margin-bottom:13px;font-size:11px;color:var(--t2);line-height:1.7;">ℹ️ El navegador web no puede leer el chip NFC del DNI directamente.</div>
+  <button class="pri-btn" style="margin:0 0 7px;" onclick="closeSheet();editDoc('dni')">✏️ Introducir manualmente</button>
+  <div class="s-cancel" onclick="closeSheet()">Cerrar</div>
+</div>
+
+<div class="sheet" id="sheet-settings">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">⚙️ Ajustes</div>
+  <div class="s-opt" onclick="closeSheet();toggleGyro()"><div class="s-opt-icon" style="background:rgba(168,85,247,.13)">📱</div><div><div class="s-opt-title" id="gyro-label">Activar giroscopio</div><div class="s-opt-sub">Efecto 3D en documentos</div></div></div>
+  <div class="s-opt" onclick="closeSheet();exportDocs()"><div class="s-opt-icon" style="background:rgba(16,185,129,.13)">📤</div><div><div class="s-opt-title">Exportar copia (con imágenes)</div><div class="s-opt-sub">Descarga todos tus datos en JSON</div></div></div>
+  <div class="s-opt" onclick="closeSheet();document.getElementById('inp-import-backup').click()"><div class="s-opt-icon" style="background:rgba(79,142,247,.13)">📥</div><div><div class="s-opt-title">Importar copia de seguridad</div><div class="s-opt-sub">Restaura datos e imágenes desde JSON</div></div></div>
+  <div class="s-opt" onclick="if(confirm('¿Borrar todos los datos?')){clearAll()}"><div class="s-opt-icon" style="background:rgba(244,63,94,.13)">🗑️</div><div><div class="s-opt-title" style="color:var(--err)">Borrar todo</div></div></div>
+  <div class="s-opt" onclick="closeSheet();showSheet('app-info')"><div class="s-opt-icon" style="background:rgba(79,142,247,.13)">ℹ️</div><div><div class="s-opt-title">Info de la app</div><div class="s-opt-sub">Versión 2.0 · Creado por Salvador M.G.</div></div></div>
+  <div class="s-cancel" onclick="closeSheet()">Cerrar</div>
+</div>
+
+<div class="sheet" id="sheet-app-info">
+  <div class="sheet-handle"></div>
+  <div style="display:flex;flex-direction:column;align-items:center;padding:8px 0 16px;">
+    <img src="data:image/png;base64,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" style="width:80px;height:80px;border-radius:18px;margin-bottom:12px;box-shadow:0 0 24px rgba(79,142,247,.3);">
+    <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:var(--t1);">SegurApp</div>
+    <div style="font-size:12px;color:var(--pri);font-weight:600;margin-top:4px;">Versión 2.0</div>
+    <div style="font-size:11px;color:var(--t2);margin-top:8px;text-align:center;line-height:1.6;">Aplicación de billetera digital<br>para Vigilantes de Seguridad Privada</div>
+    <div style="margin-top:14px;padding:12px 24px;background:var(--bg3);border-radius:12px;border:1px solid var(--b);text-align:center;">
+      <div style="font-size:10px;color:var(--t3);letter-spacing:1px;text-transform:uppercase;">Creado por</div>
+      <div style="font-size:15px;font-weight:700;color:var(--t1);margin-top:3px;">Salvador M.G.</div>
+    </div>
+    <div style="margin-top:12px;font-size:10px;color:var(--t3);text-align:center;line-height:1.7;">🔒 Datos almacenados localmente<br>en tu dispositivo. Sin servidores externos.</div>
+  </div>
+  <div class="s-cancel" onclick="closeSheet()">Cerrar</div>
+</div>
+
+<div class="sheet" id="sheet-add-acred">
+  <div class="sheet-handle"></div><div class="sheet-title">Añadir acreditación</div>
+  <div class="s-opt" onclick="closeSheet();startAcredOCR()"><div class="s-opt-icon" style="background:rgba(34,211,238,.13)">📷</div><div><div class="s-opt-title">Fotografiar o subir PDF/imagen</div><div class="s-opt-sub">Detecta datos automáticamente</div></div></div>
+  <div class="s-opt" onclick="closeSheet();openAcredForm()"><div class="s-opt-icon" style="background:rgba(79,142,247,.13)">✏️</div><div><div class="s-opt-title">Introducir manualmente</div></div></div>
+  <div class="s-cancel" onclick="closeSheet()">Cancelar</div>
+</div>
+
+<div class="sheet" id="sheet-acred-form">
+  <div class="sheet-handle"></div><div class="sheet-title" id="acred-form-title">Nueva acreditación</div>
+  <div style="margin-bottom:9px;"><div class="input-lbl">Nombre de la acreditación *</div><input class="inp" id="i-acred-nombre" placeholder="Carnet de obra, Acceso temporal…"></div>
+  <div style="margin-bottom:9px;"><div class="input-lbl">Organización emisora</div><input class="inp" id="i-acred-org" placeholder="Empresa, Ayuntamiento…"></div>
+  <div style="margin-bottom:9px;"><div class="input-lbl">Titular</div><input class="inp" id="i-acred-titular" placeholder="Nombre Apellidos"></div>
+  <div style="margin-bottom:9px;">
+    <div class="input-lbl">Nº de acreditación / código</div>
+    <input class="inp" id="i-acred-codigo" placeholder="001234 / ACR-2025-001" oninput="onAcredCodigoInput(this.value)">
+  </div>
+  <div style="margin-bottom:9px;">
+    <div class="input-lbl">Tipo de código a mostrar</div>
+    <div style="display:flex;gap:7px;margin-top:5px;">
+      <button type="button" class="acred-code-type-btn on" data-type="barcode" onclick="selectAcredCodeType('barcode')" style="flex:1;padding:8px 4px;border-radius:9px;border:2px solid var(--pri);background:var(--pri-g);color:var(--pri);font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">📊 Código barras</button>
+      <button type="button" class="acred-code-type-btn" data-type="qr" onclick="selectAcredCodeType('qr')" style="flex:1;padding:8px 4px;border-radius:9px;border:2px solid var(--b);background:transparent;color:var(--t2);font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">⬛ QR</button>
+      <button type="button" class="acred-code-type-btn" data-type="none" onclick="selectAcredCodeType('none')" style="flex:1;padding:8px 4px;border-radius:9px;border:2px solid var(--b);background:transparent;color:var(--t2);font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">✕ Ninguno</button>
+    </div>
+    <input type="hidden" id="i-acred-code-type" value="barcode">
+  </div>
+  <!-- Barcode/QR live preview -->
+  <div id="acred-code-preview" style="margin-bottom:9px;display:none;">
+    <div style="background:white;border-radius:10px;padding:8px;display:flex;align-items:center;justify-content:center;">
+      <svg id="acred-form-bc-svg" style="width:100%;max-height:80px;"></svg>
+      <canvas id="acred-form-qr-canvas" style="display:none;width:130px;height:130px;"></canvas>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:9px;">
+    <div style="flex:1;"><div class="input-lbl">Fecha emisión</div><input class="inp" id="i-acred-desde" placeholder="MM/YYYY"></div>
+    <div style="flex:1;"><div class="input-lbl">Fecha expiración</div><input class="inp" id="i-acred-hasta" placeholder="MM/YYYY"></div>
+  </div>
+  <div style="margin-bottom:9px;"><div class="input-lbl">Color de la tarjeta</div>
+    <div style="display:flex;gap:8px;margin-top:5px;" id="acred-colors">
+      <div class="acred-color-opt" data-color="blue" onclick="selectAcredColor('blue')" style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#1E3A5F,#07111E);cursor:pointer;border:2px solid white;"></div>
+      <div class="acred-color-opt" data-color="green" onclick="selectAcredColor('green')" style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#1A3A2A,#07110C);cursor:pointer;border:2px solid var(--b);"></div>
+      <div class="acred-color-opt" data-color="purple" onclick="selectAcredColor('purple')" style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#2D1B4E,#090512);cursor:pointer;border:2px solid var(--b);"></div>
+      <div class="acred-color-opt" data-color="gold" onclick="selectAcredColor('gold')" style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#3A2800,#120E00);cursor:pointer;border:2px solid var(--b);"></div>
+      <div class="acred-color-opt" data-color="red" onclick="selectAcredColor('red')" style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#3A1A20,#100608);cursor:pointer;border:2px solid var(--b);"></div>
+    </div>
+  </div>
+  <div style="margin-bottom:9px;"><div class="input-lbl">Foto, imagen o PDF (opcional)</div>
+    <div class="photo-slot" style="min-height:70px;" onclick="document.getElementById('inp-acred-img').click()">
+      <div id="prev-acred-img" style="display:none;width:100%;"></div>
+      <div id="ph-acred-img" style="display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 0;"><span style="font-size:20px">🪪</span><span style="font-size:10px;color:var(--t3)">Añadir imagen o PDF</span></div>
+      <div class="photo-ov">📷</div>
+    </div>
+  </div>
+  <button class="pri-btn" style="margin:7px 0 5px;" onclick="saveAcred()">✅ Guardar acreditación</button>
+  <div class="s-cancel" onclick="closeSheet()">Cancelar</div>
+</div>
+
+<div class="sheet" id="sheet-add-diploma">
+  <div class="sheet-handle"></div><div class="sheet-title">📜 Añadir diploma</div>
+  <div class="s-opt" onclick="closeSheet();setTimeout(()=>document.getElementById('inp-diploma-cam-'+activeCursoId)?.click(),150)"><div class="s-opt-icon" style="background:rgba(34,211,238,.13)">📷</div><div><div class="s-opt-title">Hacer foto</div><div class="s-opt-sub">Fotografía el diploma con la cámara</div></div></div>
+  <div class="s-opt" onclick="closeSheet();setTimeout(()=>document.getElementById('inp-diploma-file-'+activeCursoId)?.click(),150)"><div class="s-opt-icon" style="background:rgba(79,142,247,.13)">🖼️</div><div><div class="s-opt-title">Seleccionar foto o PDF</div><div class="s-opt-sub">Elige desde la galería o archivos</div></div></div>
+  <div class="s-opt" onclick="closeSheet();setTimeout(()=>openDiplomaOCR(),150)"><div class="s-opt-icon" style="background:rgba(168,85,247,.13)">🔍</div><div><div class="s-opt-title">Escanear con OCR</div><div class="s-opt-sub">Detecta datos del diploma automáticamente</div></div></div>
+  <div class="s-cancel" onclick="closeSheet()">Cancelar</div>
+</div>
+
+<div class="sheet" id="sheet-add-curso">
+  <div class="sheet-handle"></div><div class="sheet-title">Añadir curso</div>
+  <div class="s-opt" onclick="openCursoForm()"><div class="s-opt-icon" style="background:rgba(79,142,247,.13)">✏️</div><div><div class="s-opt-title">Introducir manualmente</div></div></div>
+  <div class="s-opt" onclick="closeSheet();setTimeout(()=>startOCR('diploma-new'),200)"><div class="s-opt-icon" style="background:rgba(34,211,238,.13)">🔍</div><div><div class="s-opt-title">Escanear diploma con OCR</div></div></div>
+  <div class="s-cancel" onclick="closeSheet()">Cancelar</div>
+</div>
+
+<div class="sheet" id="sheet-curso-form">
+  <div class="sheet-handle"></div><div class="sheet-title">Nuevo curso</div>
+  <div style="margin-bottom:9px;"><div class="input-lbl">Código SEAD</div><input class="inp" id="i-c-code" placeholder="SEAD071PO"></div>
+  <div style="margin-bottom:9px;"><div class="input-lbl">Nombre *</div><input class="inp" id="i-c-nombre" placeholder="Centros Comerciales"></div>
+  <div style="margin-bottom:9px;"><div class="input-lbl">Entidad</div><input class="inp" id="i-c-entidad" placeholder="SEPE, FOREM..."></div>
+  <div style="margin-bottom:9px;"><div class="input-lbl">Fecha (MM/YYYY)</div><input class="inp" id="i-c-fecha" placeholder="03/2024"></div>
+  <div style="margin-bottom:9px;"><div class="input-lbl">Horas</div><input class="inp" id="i-c-horas" type="number" placeholder="25"></div>
+  <button class="pri-btn" style="margin:7px 0 5px;" onclick="saveCurso()">💾 Guardar</button>
+  <div class="s-cancel" onclick="closeSheet()">Cancelar</div>
+</div>
+
+<div class="sheet" id="sheet-curso-edit">
+  <div class="sheet-handle"></div><div class="sheet-title">Editar curso</div>
+  <div style="margin-bottom:9px;"><div class="input-lbl">Código SEAD</div><input class="inp" id="ie-c-code"></div>
+  <div style="margin-bottom:9px;"><div class="input-lbl">Nombre</div><input class="inp" id="ie-c-nombre"></div>
+  <div style="margin-bottom:9px;"><div class="input-lbl">Entidad</div><input class="inp" id="ie-c-entidad"></div>
+  <div style="margin-bottom:9px;"><div class="input-lbl">Fecha (MM/YYYY)</div><input class="inp" id="ie-c-fecha"></div>
+  <div style="margin-bottom:9px;"><div class="input-lbl">Horas</div><input class="inp" id="ie-c-horas" type="number"></div>
+  <button class="pri-btn" style="margin:7px 0 5px;" onclick="saveCursoEdit()">💾 Guardar</button>
+  <div class="s-cancel" onclick="closeSheet()">Cancelar</div>
+</div>
+
+<div class="sheet" id="sheet-add-reciclaje">
+  <div class="sheet-handle"></div><div class="sheet-title">🔄 Añadir reciclaje</div>
+  <div style="margin-bottom:9px;"><div class="input-lbl">Título *</div><input class="inp" id="i-rec-titulo" placeholder="Reciclaje 2025"></div>
+  <div style="margin-bottom:9px;"><div class="input-lbl">Fecha (MM/YYYY)</div><input class="inp" id="i-rec-fecha" placeholder="03/2025"></div>
+  <div style="margin-bottom:9px;"><div class="input-lbl">Foto o PDF del certificado (opcional)</div>
+    <div class="photo-slot" style="min-height:70px;" onclick="document.getElementById('inp-rec-foto').click()">
+      <div id="prev-rec-foto" style="display:none;width:100%;"></div>
+      <div id="ph-rec-foto" style="display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 0;"><span style="font-size:20px">📜</span><span style="font-size:10px;color:var(--t3)">Añadir foto o PDF</span></div>
+      <div class="photo-ov">📷</div>
+    </div>
+  </div>
+  <button class="pri-btn" style="margin:7px 0 5px;" onclick="saveReciclaje()">✅ Añadir</button>
+  <div class="s-cancel" onclick="closeSheet()">Cancelar</div>
+</div>
+
+<div class="sheet" id="sheet-add-empresa">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="emp-form-title">Añadir empresa</div>
+  <div style="margin-bottom:9px;"><div class="input-lbl">Nombre de la empresa *</div><input class="inp" id="i-emp-nombre" placeholder="Securitas, Prosegur..."></div>
+  <div style="margin-bottom:9px;"><div class="input-lbl">Persona de contacto</div><input class="inp" id="i-emp-contacto" placeholder="Nombre del responsable"></div>
+  <div style="margin-bottom:9px;"><div class="input-lbl">Teléfono</div><input class="inp" id="i-emp-tel" type="tel" placeholder="+34 600 000 000"></div>
+  <div style="margin-bottom:9px;"><div class="input-lbl">Email</div><input class="inp" id="i-emp-email" type="email" placeholder="contacto@empresa.com"></div>
+  <div style="margin-bottom:5px;font-size:10px;font-weight:700;color:var(--t3);letter-spacing:1px;text-transform:uppercase;margin-top:6px;">Tallas de ropa de dotación</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:10px;">
+    <div><div class="input-lbl">Camiseta m. corta</div><input class="inp" id="i-emp-t-mc" placeholder="M, L, XL..."></div>
+    <div><div class="input-lbl">Camiseta m. larga</div><input class="inp" id="i-emp-t-ml" placeholder="M, L, XL..."></div>
+    <div><div class="input-lbl">Pantalón</div><input class="inp" id="i-emp-t-pan" placeholder="40, 42, 44..."></div>
+    <div><div class="input-lbl">Abrigo</div><input class="inp" id="i-emp-t-abr" placeholder="M, L, XL..."></div>
+    <div><div class="input-lbl">Chaqueta</div><input class="inp" id="i-emp-t-chaq" placeholder="M, L, XL..."></div>
+    <div><div class="input-lbl">Sindotación</div><input class="inp" id="i-emp-t-sind" placeholder="M, L, XL..."></div>
+    <div><div class="input-lbl">Gorra</div><input class="inp" id="i-emp-t-gorra" placeholder="57, 58, 59..."></div>
+  </div>
+  <button class="pri-btn" style="margin:7px 0 5px;" onclick="saveEmpresa()">💾 Guardar empresa</button>
+  <div class="s-cancel" onclick="closeSheet()">Cancelar</div>
+</div>
+
+<div class="sheet" id="sheet-add-pdf">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Añadir documento</div>
+  <div style="margin-bottom:9px;"><div class="input-lbl">Título *</div><input class="inp" id="i-pdf-titulo" placeholder="Ley de Seguridad Privada, Convenio..."></div>
+  <div style="margin-bottom:9px;"><div class="input-lbl">Categoría</div>
+    <select class="inp" id="i-pdf-cat" style="cursor:pointer;">
+      <option value="ley">📜 Ley / Normativa</option>
+      <option value="convenio">📋 Convenio colectivo</option>
+      <option value="reglamento">📗 Reglamento</option>
+      <option value="procedimiento">📄 Procedimiento</option>
+      <option value="otro">📁 Otro</option>
+    </select>
+  </div>
+  <div style="margin-bottom:9px;"><div class="input-lbl">Archivo (PDF o imagen) *</div>
+    <div class="photo-slot" style="min-height:70px;" onclick="document.getElementById('inp-pdf-file').click()">
+      <div id="prev-pdf-file" style="display:none;width:100%;text-align:center;padding:14px 0;"><span style="font-size:28px;">📄</span><div id="pdf-file-name" style="font-size:12px;color:var(--ok);margin-top:4px;"></div></div>
+      <div id="ph-pdf-file" style="display:flex;flex-direction:column;align-items:center;gap:3px;padding:13px 0;"><span style="font-size:26px">📄</span><span style="font-size:10px;color:var(--t3)">Seleccionar PDF o imagen</span></div>
+      <div class="photo-ov">📁</div>
+    </div>
+  </div>
+  <button class="pri-btn" style="margin:7px 0 5px;" onclick="savePDFDoc()">💾 Guardar</button>
+  <div class="s-cancel" onclick="closeSheet()">Cancelar</div>
+</div>
+
+<div class="sheet" id="sheet-share-select">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">📤 Compartir informe</div>
+  <div style="font-size:12px;color:var(--t2);margin-bottom:12px;">¿Cómo quieres compartir?</div>
+  <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;">
+    <button onclick="closeSheet();openInformeSheet('native')" style="display:flex;align-items:center;gap:12px;background:var(--bg3);border:1px solid rgba(37,211,102,.3);border-radius:12px;padding:12px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--t1);font-size:13px;font-weight:600;width:100%;text-align:left;"><span style="font-size:22px;">💬</span><div><div>WhatsApp / Telegram</div><div style="font-size:11px;color:var(--t2);font-weight:400;">Compartir como PDF</div></div></button>
+    <button onclick="closeSheet();openInformeSheet('email')" style="display:flex;align-items:center;gap:12px;background:var(--bg3);border:1px solid rgba(79,142,247,.3);border-radius:12px;padding:12px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--t1);font-size:13px;font-weight:600;width:100%;text-align:left;"><span style="font-size:22px;">📧</span><div><div>Email</div><div style="font-size:11px;color:var(--t2);font-weight:400;">Enviar por correo</div></div></button>
+    <button onclick="closeSheet();openInformeSheet('download')" style="display:flex;align-items:center;gap:12px;background:var(--bg3);border:1px solid var(--b);border-radius:12px;padding:12px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--t1);font-size:13px;font-weight:600;width:100%;text-align:left;"><span style="font-size:22px;">⬇️</span><div><div>Descargar PDF</div><div style="font-size:11px;color:var(--t2);font-weight:400;">Guardar en el dispositivo</div></div></button>
+  </div>
+  <div class="s-cancel" onclick="closeSheet()">Cancelar</div>
+</div>
+
+<div class="sheet" id="sheet-cv-select" style="max-height:92vh;">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">📋 Generar Informe PDF</div>
+  <div style="font-size:11px;color:var(--t2);margin-bottom:10px;">Selecciona exactamente lo que quieres incluir:</div>
+  <div style="overflow-y:auto;max-height:52vh;display:flex;flex-direction:column;gap:6px;margin-bottom:10px;" id="cv-items-container"></div>
+  <div style="display:flex;gap:7px;margin-bottom:6px;">
+    <button onclick="selectAllCV(true)" style="flex:1;padding:8px;background:var(--pri-g);border:1px solid var(--ba);border-radius:9px;color:var(--pri);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;">Seleccionar todo</button>
+    <button onclick="selectAllCV(false)" style="flex:1;padding:8px;background:var(--bg3);border:1px solid var(--b);border-radius:9px;color:var(--t2);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;">Deseleccionar</button>
+  </div>
+  <button class="pri-btn" style="margin:0 0 5px;" onclick="closeSheet();exportCVPDFV9()">📄 Generar PDF y compartir</button>
+  <div class="s-cancel" onclick="closeSheet()">Cancelar</div>
+</div>
+
+<!-- PIN LOCK -->
+<div id="lock-screen">
+  <div style="margin-bottom:12px;"><img src="data:image/png;base64,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" style="width:90px;height:90px;border-radius:20px;box-shadow:0 0 30px rgba(79,142,247,.4);"></div>
+  <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:var(--t1);margin-bottom:4px;">SegurApp</div>
+  <div style="font-size:13px;color:var(--t2);margin-bottom:28px;" id="lock-sub">Introduce tu PIN</div>
+  <div style="font-size:12px;color:var(--err);height:16px;text-align:center;margin-bottom:5px;" id="pin-error"></div>
+  <div style="display:flex;gap:13px;margin-bottom:26px;" id="lock-dots">
+    <div class="pin-dot" id="ld0"></div><div class="pin-dot" id="ld1"></div>
+    <div class="pin-dot" id="ld2"></div><div class="pin-dot" id="ld3"></div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%;max-width:270px;">
+    <div class="pin-key-cell" onclick="lPinKey('1')">1</div><div class="pin-key-cell" onclick="lPinKey('2')">2</div><div class="pin-key-cell" onclick="lPinKey('3')">3</div>
+    <div class="pin-key-cell" onclick="lPinKey('4')">4</div><div class="pin-key-cell" onclick="lPinKey('5')">5</div><div class="pin-key-cell" onclick="lPinKey('6')">6</div>
+    <div class="pin-key-cell" onclick="lPinKey('7')">7</div><div class="pin-key-cell" onclick="lPinKey('8')">8</div><div class="pin-key-cell" onclick="lPinKey('9')">9</div>
+    <div class="pin-key-cell" onclick="bioUnlock()" style="font-size:20px;">🖐️</div>
+    <div class="pin-key-cell" onclick="lPinKey('0')">0</div>
+    <div class="pin-key-cell" onclick="lPinBackspace()">⌫</div>
+  </div>
+</div>
+
+<!-- FILE INPUTS -->
+<input type="file" accept="image/*,.pdf" capture="environment" id="inp-dni-front" class="file-inp" onchange="smartCapture(this,'dni-front','dni')">
+<input type="file" accept="image/*,.pdf" id="inp-dni-back" class="file-inp" onchange="smartCapture(this,'dni-back','dni')">
+<input type="file" accept="image/*" capture="user" id="inp-tip-face" class="file-inp" onchange="handlePhoto(this,'tip-face')">
+<input type="file" accept="image/*,.pdf" id="inp-tip-front" class="file-inp" onchange="smartCapture(this,'tip-front','tip')">
+<input type="file" accept="image/*,.pdf" id="inp-tip-back" class="file-inp" onchange="smartCapture(this,'tip-back','tip')">
+<input type="file" accept="image/*" capture="environment" id="inp-aesa-qr-c" class="file-inp" onchange="handlePhoto(this,'aesa-qr')">
+<input type="file" accept="image/*" id="inp-aesa-qr-g" class="file-inp" onchange="handlePhoto(this,'aesa-qr')">
+<input type="file" accept="image/*,.pdf" id="inp-aesa-cert" class="file-inp" onchange="smartCapture(this,'aesa-cert','aesa')">
+<input type="file" accept="image/*,.pdf" id="inp-ss-doc" class="file-inp" onchange="smartCapture(this,'ss-doc','ss')">
+<input type="file" accept="image/*,.pdf" id="inp-banco-cert" class="file-inp" onchange="smartCapture(this,'banco-cert','banco')">
+<input type="file" accept="image/*" id="inp-ocr" class="file-inp" onchange="handleOCRFile(this)">
+<input type="file" accept="image/*,.pdf" id="inp-acred-scan" class="file-inp" onchange="handleAcredScan(this)">
+<input type="file" accept="image/*,.pdf" id="inp-acred-img" class="file-inp" onchange="handleAcredScan(this)">
+<input type="file" accept="image/*,.pdf" id="inp-rec-foto" class="file-inp" onchange="smartCapture(this,'rec-foto','diploma')">
+<input type="file" accept="image/*" capture="user" id="inp-perfil-face" class="file-inp" onchange="handlePerfilFacePhoto(this)">
+<input type="file" accept=".pdf,image/*" id="inp-pdf-file" class="file-inp" onchange="handlePDFFileSelect(this)">
+<input type="file" accept=".json" id="inp-import-backup" class="file-inp" onchange="importBackup(this)">
+
+<div class="install-banner" id="install-banner">
+  <span style="font-size:21px">📲</span>
+  <div style="flex:1"><div style="font-size:13px;font-weight:700;">Instalar SegurApp</div><div style="font-size:11px;color:var(--t2)">Añadir a inicio</div></div>
+  <button class="ib-btn" id="ib-btn">Instalar</button>
+  <button style="background:none;border:none;color:var(--t3);font-size:17px;cursor:pointer;" onclick="document.getElementById('install-banner').classList.remove('show')">✕</button>
+</div>
+
+<script src="capacitor.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

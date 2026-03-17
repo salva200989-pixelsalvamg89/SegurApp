@@ -1,0 +1,16 @@
+{
+  "appId": "com.salvadormg.segurapp",
+  "appName": "SegurApp",
+  "webDir": ".",
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#05080F"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "backgroundColor": "#05080F",
+      "showSpinner": false
+    }
+  }
+}
