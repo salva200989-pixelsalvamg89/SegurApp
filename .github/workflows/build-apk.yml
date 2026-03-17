@@ -71,28 +71,4 @@ jobs:
         with:
           name: SegurApp-v2.0
           path: android/app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 30AgICAgICAgICAgICAgICAgLy8gUXVpdGFyIGNvbWlsbGFzIHF1ZSBhw7FhZGUgZXZhbHVhdGVKYXZhc2NyaXB0CiAgICAgICAgICAgICAgICAgICAgICAgIFN0cmluZyBjbGVhbiA9IHZhbHVlOwogICAgICAgICAgICAgICAgICAgICAgICBpZiAoY2xlYW4uc3RhcnRzV2l0aCgiIiIpKSBjbGVhbiA9IGNsZWFuLnN1YnN0cmluZygxKTsKICAgICAgICAgICAgICAgICAgICAgICAgaWYgKGNsZWFuLmVuZHNXaXRoKCIiIikpIGNsZWFuID0gY2xlYW4uc3Vic3RyaW5nKDAsIGNsZWFuLmxlbmd0aCgpLTEpOwogICAgICAgICAgICAgICAgICAgICAgICBjbGVhbiA9IGNsZWFuLnJlcGxhY2UoIlxcIiIsICIiIikucmVwbGFjZSgiXFxcXCIsICJcXCIpOwogICAgICAgICAgICAgICAgICAgICAgICAvLyBHdWFyZGFyIGVuIFNoYXJlZFByZWZlcmVuY2VzIChOVU5DQSBzZSBib3JyYSkKICAgICAgICAgICAgICAgICAgICAgICAgU2hhcmVkUHJlZmVyZW5jZXMgcHJlZnMgPSBnZXRTaGFyZWRQcmVmZXJlbmNlcyhQUkVGU19OQU1FLCBNT0RFX1BSSVZBVEUpOwogICAgICAgICAgICAgICAgICAgICAgICBwcmVmcy5lZGl0KCkucHV0U3RyaW5nKFBSRUZTX0tFWSwgY2xlYW4pLmFwcGx5KCk7CiAgICAgICAgICAgICAgICAgICAgICAgIC8vIEd1YXJkYXIgdGFtYmnDqW4gZW4gYXJjaGl2byBmw61zaWNvIHZpYSBwbHVnaW4KICAgICAgICAgICAgICAgICAgICAgICAgdHJ5IHsKICAgICAgICAgICAgICAgICAgICAgICAgICAgIE5hdGl2ZVN0b3JhZ2VQbHVnaW4uc2F2ZURpcmVjdGx5KGdldEFwcGxpY2F0aW9uQ29udGV4dCgpLCBjbGVhbik7CiAgICAgICAgICAgICAgICAgICAgICAgIH0gY2F0Y2goRXhjZXB0aW9uIGV4KSB7fQogICAgICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgKTsKICAgICAgICB9IGNhdGNoKEV4Y2VwdGlvbiBlKSB7fQogICAgfQoKICAgIEBPdmVycmlkZQogICAgcHVibGljIHZvaWQgb25CYWNrUHJlc3NlZCgpIHsKICAgICAgICBtb3ZlVGFza1RvQmFjayh0cnVlKTsKICAgIH0KfQ==" | base64 -d > $DIR/MainActivity.java
-          echo "=== NativeStoragePlugin primeras lineas ==="
-          head -5 $DIR/NativeStoragePlugin.java
-          echo "=== MainActivity primeras lineas ==="
-          head -5 $DIR/MainActivity.java
-
-      - name: Permisos AndroidManifest
-        run: |
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          sed -i 's|</manifest>|    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />\n    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />\n    <uses-permission android:name="android.permission.VIBRATE" />\n</manifest>|' $MANIFEST
-
-      - name: Permisos Gradle
-        run: chmod +x android/gradlew
-
-      - name: Construir APK
-        run: |
-          cd android
-          ./gradlew assembleDebug --no-daemon
-
-      - name: Subir APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: SegurApp-v2.0
-          path: android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
