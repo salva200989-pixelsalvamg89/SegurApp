@@ -1,101 +1,224 @@
-name: Build SegurApp APK
+nombre: Build SegurApp APK
 
-on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:
+en:
+  empujar:
+    ramas: [ principal ]
+  flujo_de_trabajo:
 
-jobs:
-  build:
+empleos:
+  construir:
     runs-on: ubuntu-latest
 
-    steps:
-      - name: Descargar cÃ³digo
-        uses: actions/checkout@v4
+    pasos:
+      - nombre: Descargar código
+        Usos: acciones/checkout@v4
 
-      - name: Instalar Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+      - nombre: Instalar Node.js
+        usos: actions/setup-node@v4
+        con:
+          versión del nodo: '20'
 
-      - name: Instalar Java 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
+      - nombre: Instalar Java 17
+        Usos: actions/setup-java@v4
+        con:
+          versión de Java: '17'
+          distribución: 'temurin'
 
-      - name: Preparar carpeta www
-        run: |
+      - nombre: Preparar carpeta www
+        correr: |
           mkdir -p www
           cp index.html app.js sw.js manifest.json www/
-          cp -r icons www/
+          cp -r iconos www/
           node get-libs.js
           cp -r lib www/
 
-      - name: Instalar Capacitor
-        run: npm install
+      - nombre: Instalar condensador
+        ejecutar: npm install
 
-      - name: Inicializar Capacitor
-        run: npx cap init "SegurApp" "com.salvadormg.segurapp" --web-dir www
+      - nombre: Inicializar Capacitor
+        ejecutar: npx cap init "SegurApp" "com.salvadormg.segurapp" --web-dir www
 
-      - name: AÃ±adir Android
-        run: npx cap add android
+      - nombre: AÃ±adir Android
+        ejecutar: npx cap agregar android
 
-      - name: Sincronizar
-        run: npx cap sync android
+      - nombre: Sincronizar
+        ejecutar: sincronización de capacidad npx android
 
-      - name: Parchear MainActivity
-        run: |
+      - nombre: Crear complemento nativo NativeStorage
+        correr: |
           mkdir -p android/app/src/main/java/com/salvadormg/segurapp
-          cat > android/app/src/main/java/com/salvadormg/segurapp/MainActivity.java << 'JAVA'
-          package com.salvadormg.segurapp;
-          import android.os.Bundle;
-          import android.Manifest;
-          import android.os.Build;
-          import androidx.core.app.ActivityCompat;
-          import com.getcapacitor.BridgeActivity;
-          public class MainActivity extends BridgeActivity {
-            private static final int PERM_CODE = 100;
-            @Override
-            public void onCreate(Bundle savedInstanceState) {
-              super.onCreate(savedInstanceState);
-              if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                ActivityCompat.requestPermissions(this, new String[]{
-                  Manifest.permission.READ_MEDIA_IMAGES,
-                  Manifest.permission.READ_MEDIA_VIDEO,
-                  Manifest.permission.CAMERA
-                }, PERM_CODE);
-              } else {
-                ActivityCompat.requestPermissions(this, new String[]{
-                  Manifest.permission.READ_EXTERNAL_STORAGE,
-                  Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                  Manifest.permission.CAMERA
-                }, PERM_CODE);
-              }
-            }
-            @Override
-            public void onBackPressed() {
-              moveTaskToBack(true);
-            }
-          }
-          JAVA
+          
+          #Plugin Java que guarda en Android/data/com.salvadormg.segurapp/files/SegurApp/datos.json
+          gato > android/app/src/main/java/com/salvadormg/segurapp/NativeStoragePlugin.java << 'JAVA'
+paquete com.salvadormg.segurapp;
 
-      - name: Permisos AndroidManifest
-        run: |
+import android.content.Context;
+import android.util.Log;
+import com.getcapacitor.Plugin;
+import com.getcapacitor.PluginCall;
+import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.CapacitorPlugin;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+
+@CapacitorPlugin(name = "NativeStorage")
+public class NativeStoragePlugin extends Plugin {
+
+    private static final String TAG = "NativeStorage";
+    private static final String CARPETA = "SegurApp";
+    private static final String FILE = "datos.json";
+
+    Archivo privado obtenerArchivoDeDatos() {
+        // Guarda en Android/data/com.salvadormg.segurapp/files/SegurApp/datos.json
+        Directorio de archivo = nuevo archivo (getContext().getExternalFilesDir(null), FOLDER);
+        if (!dir.exists()) dir.mkdirs();
+        devolver nuevo Archivo(dir, ARCHIVO);
+    }
+
+    Archivo privado obtenerArchivoDeDatosInterno() {
+        // Backup en almacenamiento interno (no se borra con limpiar caché)
+        Directorio de archivos = nuevo Archivo(getContext().getFilesDir(), CARPETA);
+        if (!dir.exists()) dir.mkdirs();
+        devolver nuevo Archivo(dir, ARCHIVO);
+    }
+
+    @PluginMethod
+    public void save(PluginCall call) {
+        String datos = llamada.getString("datos", "");
+        booleano guardado = falso;
+
+        // Guarda en ambas ubicaciones
+        intentar {
+            FileWriter fw = new FileWriter(getDataFile());
+            BufferedWriter bw = nuevo BufferedWriter(fw);
+            bw.write(datos);
+            bw.close();
+            guardado = verdadero;
+        } catch (Exception e) {
+            Log.e(TAG, "Error guardando en externo: " + e.getMessage());
+        }
+
+        intentar {
+            FileWriter fw = new FileWriter(getDataFileInternal());
+            BufferedWriter bw = nuevo BufferedWriter(fw);
+            bw.write(datos);
+            bw.close();
+            guardado = verdadero;
+        } catch (Exception e) {
+            Log.e(TAG, "Error guardando en interno: " + e.getMessage());
+        }
+
+        si (guardado) {
+            llamar.resolver();
+        } demás {
+            call.reject("No se pudo guardar");
+        }
+    }
+
+    @PluginMethod
+    public void load(PluginCall call) {
+        // Intenta leer primero del externo, luego del interno
+        Archivo[] archivos = { obtenerArchivoDeDatos(), obtenerArchivoDeDatosInterno() };
+
+        para (Archivo f : archivos) {
+            intentar {
+                si (f.existe()) {
+                    StringBuilder sb = nuevo StringBuilder();
+                    BufferedReader br = new BufferedReader(new FileReader(f));
+                    Línea de cadena;
+                    mientras ((línea = br.readLine()) != null) sb.append(línea);
+                    br.close();
+                    com.getcapacitor.JSObject resultado = nuevo com.getcapacitor.JSObject();
+                    resultado.put("datos", sb.toString());
+                    llamar.resolver(resultado);
+                    devolver;
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error leyendo: " + e.getMessage());
+            }
+        }
+
+        // No hay datos aún (primera instalación)
+        com.getcapacitor.JSObject resultado = nuevo com.getcapacitor.JSObject();
+        resultado.put("datos", "");
+        llamar.resolver(resultado);
+    }
+}
+JAVA
+
+          # MainActivity que registra el complemento y pide permisos
+          gato > android/app/src/main/java/com/salvadormg/segurapp/MainActivity.java << 'JAVA'
+paquete com.salvadormg.segurapp;
+
+import android.os.Bundle;
+importar android.Manifest;
+import android.os.Build;
+import android.webkit.WebView;
+import androidx.core.app.ActivityCompat;
+import com.getcapacitor.BridgeActivity;
+
+clase pública MainActivity extiende BridgeActivity {
+
+    @Anular
+    public void onCreate(Bundle savedInstanceState) {
+        registrarPlugin(NativeStoragePlugin.class);
+        super.onCreate(savedInstanceState);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ActivityCompat.requestPermissions(this, new String[]{
+                Manifiesto.permiso.LEER_IMÁGENES_MEDIA,
+                Manifiesto.permiso.LEER_VIDEO_MEDIA,
+                Manifiesto.permiso.CÁMARA
+            }, 100);
+        } demás {
+            ActivityCompat.requestPermissions(this, new String[]{
+                Manifiesto.permiso.READ_EXTERNAL_STORAGE,
+                Manifiesto.permiso.ESCRIBIR_ALMACENAMIENTO_EXTERNAL,
+                Manifiesto.permiso.CÁMARA
+            }, 100);
+        }
+    }
+
+    @Anular
+    protected void onStop() {
+        // Se llama SIEMPRE antes de cerrar: botón atrás, gestor de tareas, apagar pantalla
+        // Forzamos que el JS guarde antes de que Android mate el proceso
+        intentar {
+            getBridge().getWebView().evaluateJavascript(
+                "try{const d=JSON.stringify(state);localStorage.setItem('segurapp8',d);" +
+                "const ns=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.NativeStorage;" +
+                "if(ns)ns.save({data:d});}catch(e){}",
+                nulo
+            );
+        } catch(Exception e) {}
+        super.onStop();
+    }
+
+    @Anular
+    public void onBackPressed() {
+        moverTareaAlReverso(verdadero);
+    }
+}
+JAVA
+
+      - nombre: Permisos AndroidManifest
+        correr: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
-          sed -i 's|</manifest>|    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />\n    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />\n    <uses-permission android:name="android.permission.VIBRATE" />\n</manifest>|' $MANIFEST
+          sed -i 's|</manifest>| <uses-permission android:name="android.permission.CAMERA" />\n <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />\n <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />\n <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />\n <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />\n <uses-permission android:name="android.permission.VIBRATE" />\n</manifest>|' $MANIFEST
 
-      - name: Permisos Gradle
-        run: chmod +x android/gradlew
+      - nombre: Permisos Gradle
+        ejecutar: chmod +x android/gradlew
 
-      - name: Construir APK
-        run: |
-          cd android
+      - nombre: Construir APK
+        correr: |
+          CD Android
           ./gradlew assembleDebug --no-daemon
 
-      - name: Subir APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: SegurApp-v2.0
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 30
+      - nombre: Subir APK
+        Usos: acciones/cargar-artefacto@v4
+        con:
+          nombre: SegurApp-v2.0
+          Ruta: android/app/build/outputs/apk/debug/app-debug.apk
+          días de retención: 30
