@@ -63,27 +63,71 @@ let state={
   photos:{},pin:'',bioEnabled:false,gyro:false,theme:'dark',notifEnabled:false,notifDays:[30,60,90],
   empresas:[],pdfLibrary:[],
 };
+// ── STORAGE: IndexedDB (persistente) + localStorage (backup) ────
+const DB_NAME='segurapp_db', DB_STORE='kv', DB_KEY='segurapp8';
+
+function openDB(){
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open(DB_NAME,1);
+    r.onupgradeneeded=e=>e.target.result.createObjectStore(DB_STORE);
+    r.onsuccess=e=>res(e.target.result);
+    r.onerror=()=>rej(r.error);
+  });
+}
+
+function applyLoadedData(l){
+  Object.assign(state,l);
+  if(!state.photos)   state.photos={};
+  if(!state.acred)    state.acred=[];
+  if(!state.cursos)   state.cursos=[];
+  if(!state.empresas) state.empresas=[];
+  if(!state.pdfLibrary) state.pdfLibrary=[];
+  if(!state.ss)    state.ss={nombre:'',apell:'',dni:'',naf:''};
+  if(!state.banco) state.banco={nombre:'',apell:'',dni:'',iban:'',bic:'',banco:''};
+  if(!state.perfil.enfermedades) state.perfil.enfermedades='';
+  if(!state.tip.habsExtra) state.tip.habsExtra={ep:{tip:'',desde:'',hasta:''},dp:{tip:'',desde:'',hasta:''}};
+  state.cursos.forEach(c=>{if(!c.reciclajes)c.reciclajes=[];});
+}
+
+// Carga síncrona desde localStorage (para el boot inicial)
 function loadState(){
   try{
-    const s=localStorage.getItem('segurapp8');
-    if(s){
-      const l=JSON.parse(s); Object.assign(state,l);
-      if(!state.photos)   state.photos={};
-      if(!state.acred)    state.acred=[];
-      if(!state.cursos)   state.cursos=[];
-      if(!state.empresas) state.empresas=[];
-      if(!state.pdfLibrary) state.pdfLibrary=[];
-      if(!state.ss)    state.ss={nombre:'',apell:'',dni:'',naf:''};
-      if(!state.banco) state.banco={nombre:'',apell:'',dni:'',iban:'',bic:'',banco:''};
-      if(!state.perfil.enfermedades) state.perfil.enfermedades='';
-      if(!state.tip.habsExtra) state.tip.habsExtra={ep:{tip:'',desde:'',hasta:''},dp:{tip:'',desde:'',hasta:''}};
-      state.cursos.forEach(c=>{if(!c.reciclajes)c.reciclajes=[];});
-    }
+    const s=localStorage.getItem(DB_KEY);
+    if(s) applyLoadedData(JSON.parse(s));
   }catch(e){}
+  // Luego intenta IndexedDB en background y actualiza si hay más datos
+  openDB().then(db=>{
+    const tx=db.transaction(DB_STORE,'readonly');
+    const req=tx.objectStore(DB_STORE).get(DB_KEY);
+    req.onsuccess=()=>{
+      if(req.result){
+        try{
+          applyLoadedData(JSON.parse(req.result));
+          // Solo re-renderiza si la app ya está lista
+          if(typeof renderAll==='function' && document.getElementById('s-wallet')){
+            renderAll();
+            checkOnboarding();
+          }
+        }catch(e){}
+      }
+    };
+  }).catch(()=>{});
 }
+
+// Guardado en ambos storages
 function saveState(){
-  try{localStorage.setItem('segurapp8',JSON.stringify(state));}
-  catch(e){try{localStorage.setItem('segurapp8',JSON.stringify({...state,photos:{}}));}catch(e2){}}
+  const data=JSON.stringify(state);
+  // IndexedDB (persistente, no lo borra Android)
+  openDB().then(db=>{
+    const tx=db.transaction(DB_STORE,'readwrite');
+    tx.objectStore(DB_STORE).put(data,DB_KEY);
+  }).catch(()=>{});
+  // localStorage como backup inmediato
+  try{localStorage.setItem(DB_KEY,data);}
+  catch(e){
+    try{localStorage.setItem(DB_KEY,JSON.stringify({...state,photos:{}}));}
+    catch(e2){}
+  }
 }
 
 function showToast(msg){
