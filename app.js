@@ -117,9 +117,8 @@ async function loadStateNative() {
   if (!ns) return;
   try {
     const result = await ns.load();
-    if (result && result.data && result.data.length > 2) {
+    if (result && result.data && result.data.length > 10) {
       applyLoadedData(JSON.parse(result.data));
-      // Sincroniza localStorage con el archivo nativo
       try { localStorage.setItem(DB_KEY, result.data); } catch(e) {}
     }
   } catch(e) {}
