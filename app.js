@@ -63,24 +63,25 @@ let state={
   photos:{},pin:'',bioEnabled:false,gyro:false,theme:'dark',notifEnabled:false,notifDays:[30,60,90],
   empresas:[],pdfLibrary:[],
 };
-// ── STORAGE: IndexedDB (persistente) + localStorage (backup) ────
-const DB_NAME='segurapp_db', DB_STORE='kv', DB_KEY='segurapp8';
+// ── STORAGE: Archivo real en Documents/SegurApp/datos.json ──────
+// En APK usa @capacitor/filesystem → carpeta visible en el móvil
+// En navegador usa localStorage como fallback
+const DB_KEY      = 'segurapp8';
+const FILE_NAME   = 'datos.json';
+const FILE_FOLDER = 'SegurApp';   // carpeta visible en Documentos del móvil
 
-function openDB(){
-  return new Promise((res,rej)=>{
-    const r=indexedDB.open(DB_NAME,1);
-    r.onupgradeneeded=e=>e.target.result.createObjectStore(DB_STORE);
-    r.onsuccess=e=>res(e.target.result);
-    r.onerror=()=>rej(r.error);
-  });
+function getFS() {
+  return (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem)
+    ? window.Capacitor.Plugins.Filesystem
+    : null;
 }
 
-function applyLoadedData(l){
-  Object.assign(state,l);
-  if(!state.photos)   state.photos={};
-  if(!state.acred)    state.acred=[];
-  if(!state.cursos)   state.cursos=[];
-  if(!state.empresas) state.empresas=[];
+function applyLoadedData(l) {
+  Object.assign(state, l);
+  if(!state.photos)     state.photos={};
+  if(!state.acred)      state.acred=[];
+  if(!state.cursos)     state.cursos=[];
+  if(!state.empresas)   state.empresas=[];
   if(!state.pdfLibrary) state.pdfLibrary=[];
   if(!state.ss)    state.ss={nombre:'',apell:'',dni:'',naf:''};
   if(!state.banco) state.banco={nombre:'',apell:'',dni:'',iban:'',bic:'',banco:''};
@@ -89,44 +90,65 @@ function applyLoadedData(l){
   state.cursos.forEach(c=>{if(!c.reciclajes)c.reciclajes=[];});
 }
 
-// Carga síncrona desde localStorage (para el boot inicial)
-function loadState(){
-  try{
-    const s=localStorage.getItem(DB_KEY);
-    if(s) applyLoadedData(JSON.parse(s));
-  }catch(e){}
-  // Luego intenta IndexedDB en background y actualiza si hay más datos
-  openDB().then(db=>{
-    const tx=db.transaction(DB_STORE,'readonly');
-    const req=tx.objectStore(DB_STORE).get(DB_KEY);
-    req.onsuccess=()=>{
-      if(req.result){
-        try{
-          applyLoadedData(JSON.parse(req.result));
-          // Solo re-renderiza si la app ya está lista
-          if(typeof renderAll==='function' && document.getElementById('s-wallet')){
-            renderAll();
-            checkOnboarding();
-          }
-        }catch(e){}
-      }
-    };
-  }).catch(()=>{});
+// Guarda en archivo JSON real + localStorage backup
+async function saveStateAsync() {
+  const data = JSON.stringify(state);
+  // 1. Archivo real en Documents/SegurApp/datos.json
+  const fs = getFS();
+  if (fs) {
+    try {
+      // Crear carpeta si no existe
+      await fs.mkdir({
+        path: FILE_FOLDER,
+        directory: 'DOCUMENTS',
+        recursive: true
+      }).catch(() => {}); // ignora si ya existe
+      // Escribir archivo
+      await fs.writeFile({
+        path: FILE_FOLDER + '/' + FILE_NAME,
+        data: data,
+        directory: 'DOCUMENTS',
+        encoding: 'utf8'
+      });
+    } catch(e) {}
+  }
+  // 2. localStorage como backup
+  try { localStorage.setItem(DB_KEY, data); }
+  catch(e) {
+    try { localStorage.setItem(DB_KEY, JSON.stringify({...state, photos:{}})); } catch(e2) {}
+  }
 }
 
-// Guardado en ambos storages
-function saveState(){
-  const data=JSON.stringify(state);
-  // IndexedDB (persistente, no lo borra Android)
-  openDB().then(db=>{
-    const tx=db.transaction(DB_STORE,'readwrite');
-    tx.objectStore(DB_STORE).put(data,DB_KEY);
-  }).catch(()=>{});
-  // localStorage como backup inmediato
-  try{localStorage.setItem(DB_KEY,data);}
-  catch(e){
-    try{localStorage.setItem(DB_KEY,JSON.stringify({...state,photos:{}}));}
-    catch(e2){}
+// Versión síncrona para llamadas legacy — dispara la async en background
+function saveState() {
+  saveStateAsync().catch(() => {});
+}
+
+// Carga síncrona desde localStorage (arranque rápido)
+function loadState() {
+  try {
+    const s = localStorage.getItem(DB_KEY);
+    if (s) applyLoadedData(JSON.parse(s));
+  } catch(e) {}
+}
+
+// Carga desde archivo real (APK) — más fiable
+async function loadStateNative() {
+  const fs = getFS();
+  if (!fs) return;
+  try {
+    const result = await fs.readFile({
+      path: FILE_FOLDER + '/' + FILE_NAME,
+      directory: 'DOCUMENTS',
+      encoding: 'utf8'
+    });
+    if (result && result.data) {
+      applyLoadedData(JSON.parse(result.data));
+      // Sincroniza localStorage con el archivo
+      try { localStorage.setItem(DB_KEY, result.data); } catch(e) {}
+    }
+  } catch(e) {
+    // El archivo no existe aún (primera instalación) — normal
   }
 }
 
@@ -744,7 +766,18 @@ function exportDocs(){
     }catch(e2){showToast('❌ Error al exportar');}
   }
 }
-function clearAll(){localStorage.removeItem('segurapp8');location.reload();}
+function clearAll(){
+  if(!confirm('¿Borrar todos los datos?')) return;
+  localStorage.removeItem(DB_KEY);
+  const fs = getFS();
+  if (fs) {
+    fs.deleteFile({
+      path: FILE_FOLDER + '/' + FILE_NAME,
+      directory: 'DOCUMENTS'
+    }).catch(() => {});
+  }
+  location.reload();
+}
 
 // ── PWA ───────────────────────────────────────────────────────────
 let dp=null;
@@ -2675,7 +2708,7 @@ function updateHoloBadge() {
 }
 
 // ── BOOT ─────────────────────────────────────────────────────
-loadState();
+loadState(); // carga rápida desde localStorage
 document.documentElement.setAttribute('data-theme','dark');
 patchState();
 initLock();
@@ -2683,3 +2716,11 @@ if (!state.pin) {
   renderAll();
   checkOnboarding();
 }
+// Carga nativa desde Capacitor Preferences (APK) en background
+loadStateNative().then(() => {
+  patchState();
+  if (!state.pin) {
+    renderAll();
+    checkOnboarding();
+  }
+}).catch(() => {});
