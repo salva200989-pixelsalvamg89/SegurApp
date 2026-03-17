@@ -93,16 +93,15 @@ function applyLoadedData(l) {
 // ── GUARDAR ───────────────────────────────────────────────────
 function saveState() {
   const data = JSON.stringify(state);
-  // 1. localStorage — siempre
+  // localStorage siempre
   try { localStorage.setItem(DB_KEY, data); } catch(e) {
     try { localStorage.setItem(DB_KEY, JSON.stringify({...state,photos:{}})); } catch(e2) {}
   }
-  // 2. AndroidStorage (JavascriptInterface) — síncrono, escribe en disco inmediatamente
-  // Es el método más fiable: Java nativo llamado directamente desde JS
-  if (window.AndroidStorage) {
-    try { window.AndroidStorage.saveData(data); } catch(e) {}
+  // window.Droid — JavascriptInterface síncrono, escribe en SharedPreferences inmediatamente
+  if (window.Droid) {
+    try { window.Droid.save(data); } catch(e) {}
   }
-  // 3. Plugin Capacitor como backup adicional
+  // Plugin Capacitor backup
   const ns = getNativeStorage();
   if (ns) ns.save({ data }).catch(() => {});
 }
@@ -117,10 +116,10 @@ function loadState() {
 }
 
 async function loadStateNative() {
-  // 1. AndroidStorage (JavascriptInterface) — más fiable
-  if (window.AndroidStorage) {
+  // window.Droid — JavascriptInterface síncrono
+  if (window.Droid) {
     try {
-      const data = window.AndroidStorage.loadData();
+      const data = window.Droid.load();
       if (data && data.length > 10) {
         applyLoadedData(JSON.parse(data));
         try { localStorage.setItem(DB_KEY, data); } catch(e) {}
@@ -128,7 +127,7 @@ async function loadStateNative() {
       }
     } catch(e) {}
   }
-  // 2. Plugin Capacitor como fallback
+  // Plugin Capacitor fallback
   const ns = getNativeStorage();
   if (!ns) return;
   try {
