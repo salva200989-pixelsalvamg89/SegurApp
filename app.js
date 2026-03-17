@@ -2712,19 +2712,41 @@ function updateHoloBadge() {
 }
 
 // ── BOOT ─────────────────────────────────────────────────────
-loadState();
-document.documentElement.setAttribute('data-theme','dark');
-patchState();
-setupExitSave();
-initLock();
-if (!state.pin) {
-  renderAll();
-  checkOnboarding();
+function bootApp() {
+  // Carga desde Droid (JavascriptInterface nativo) si está disponible
+  if (window.Droid) {
+    try {
+      const nativeData = window.Droid.load();
+      if (nativeData && nativeData.length > 10) {
+        applyLoadedData(JSON.parse(nativeData));
+        try { localStorage.setItem(DB_KEY, nativeData); } catch(e) {}
+      }
+    } catch(e) {}
+  }
+  // Fallback localStorage
+  loadState();
+  document.documentElement.setAttribute('data-theme','dark');
+  patchState();
+  setupExitSave();
+  initLock();
+  if (!state.pin) {
+    renderAll();
+    checkOnboarding();
+  }
 }
-// Carga desde archivo nativo (APK) — sobrescribe localStorage si hay datos más recientes
-if (window.Capacitor) {
-  loadStateNative().then(() => {
-    patchState();
-    if (!state.pin) { renderAll(); checkOnboarding(); }
-  }).catch(() => {});
+
+// Espera a que window.Droid esté disponible (JavascriptInterface tarda un poco)
+// Si no está en 3 segundos, arranca sin él (navegador web normal)
+let _bootTries = 0;
+function waitForDroidAndBoot() {
+  if (window.Droid) {
+    bootApp();
+  } else if (_bootTries < 30) {
+    _bootTries++;
+    setTimeout(waitForDroidAndBoot, 100);
+  } else {
+    // No hay Droid (navegador web) — arranca normal
+    bootApp();
+  }
 }
+waitForDroidAndBoot();
